@@ -16,3 +16,18 @@ Per una prova locale: `python app.py`, poi apri `http://localhost:10000`. Non so
 ## Fantabasket
 
 La pagina include ora tre aree di calcolo: **PCF LBA**, **PCF LNP** e **FBL LBA**. Il copia/incolla delle formazioni viene conservato nel `localStorage` del browser separatamente per ciascun fantabasket e resta disponibile finché viene sovrascritto o azzerato. Il calcolo usa i tabellini della giornata selezionata; per PCF applica il riempimento dei 40 minuti per ruolo e il +3 alla squadra di casa.
+
+## Modulo Fantabasket
+Il copia/incolla delle formazioni è memorizzato separatamente per competizione e giornata. Il parser PCF riconosce anche i post in cui il nome della squadra non è ripetuto, usando l'username dell'autore del forum (caso tipico di Casorzo Lakers e Olimpija Ruero in PCF LNP).
+
+## Modulo Fantabasket
+
+La pagina include tre calcolatori: **PCF LBA**, **PCF LNP** e **FBL LBA**. Il copia/incolla grezzo del thread viene conservato nel browser separatamente per competizione e giornata finché viene sovrascritto o azzerato.
+
+- PCF LBA/LNP: +3 alla squadra di casa; motore 40 minuti per slot con 11°/12° sui residui compatibili.
+- FBL LBA: +5 alla squadra di casa; 5 titolari + 5 riserve + fino a 3 tribuna. La tribuna interviene, in ordine e per ruolo compatibile, quando uno dei primi 10 ha 0 minuti.
+
+Test di regressione G1 usati per il motore:
+- PCF LBA: Basket Padova – Olimpija Ruero **75–57**.
+- PCF LNP: Si Ok E Poi? – I Mollo **52–108**.
+- FBL LBA: Drink Team – Rasta Panthers **61–122**; CSKA Basket – Monza a Spicchi **147–139**; PBK Dinamo Ronco – Maccabi Ruero **98–100**; Casorzo Lakers – Furleee **87–79**.

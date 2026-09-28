@@ -1,8 +1,8 @@
 """Parser/calcolatore leggero per i tre fantabasket collegati ai tabellini."""
-import re, unicodedata
+import re, unicodedata, math
 
 ROLES=('PM','G','AP','AG','C')
-ROLE_RE=re.compile(r'(?<![A-Z])(?:PM/G|G/AP|AP/AG|AG/C|PM|AP|AG|G|C)(?![A-Z])',re.I)
+ROLE_RE=re.compile(r'(?<![A-Z])(?:PM/G|G/AP|AP/AG|AG/C|PM|AP|AG|G|A|C)(?![A-Z])',re.I)
 
 def norm(s):
     s=unicodedata.normalize('NFKD',str(s)).encode('ascii','ignore').decode().lower()
@@ -10,7 +10,7 @@ def norm(s):
 
 def role_parts(role): return role.upper().split('/') if role else []
 
-def trunc(x): return int(x)  # Python tronca verso zero, come gli esempi del regolamento
+def trunc(x): return math.floor(x)  # arrotondamento sempre per difetto, anche per valori negativi
 
 def player_index(games):
     out={}
@@ -21,6 +21,8 @@ def player_index(games):
 
 def best_match(name, idx):
     n=norm(name)
+    alias=PLAYER_ALIASES.get(n) if 'PLAYER_ALIASES' in globals() else None
+    if alias and norm(alias) in idx: return idx[norm(alias)]
     if n in idx:return idx[n]
     nt=set(n.split()); best=None; score=0
     for k,v in idx.items():
@@ -99,6 +101,54 @@ def score_formation(players, stats):
     total+=best[0]
     for p,slot,pts,take in best[1]:
         details.append({'slot':slot,'name':p['real_name'],'role':p['role'],'minutes':max(0,p['minutes']),'valuation':p['valuation'],'used_minutes':take,'fantasy':pts})
+    return total,details
+
+def score_fbl(players, stats, team=None):
+    """Motore FBL: 5 titolari, 5 riserve abbinate per slot, fino a 3 tribuna.
+    La tribuna interviene solo per un assente (0 minuti) nei primi 10: se e'
+    assente il titolare, la riserva sale titolare e il primo tribunaro di ruolo
+    compatibile prende il posto in panchina; se e' assente la riserva, il
+    tribunaro compatibile la sostituisce. Ogni slot copre al massimo 40 minuti.
+    """
+    enriched=[]
+    for i,p in enumerate(players[:13]):
+        lookup=p['name']
+        if team=='Furleee' and norm(lookup)=='edwards': lookup='Rob Edwards'
+        if team=='CSKA Basket' and norm(lookup)=='edwards': lookup='Kessler Edwards'
+        real,mins,val=best_match(lookup,stats)
+        enriched.append({**p,'real_name':real,'minutes':max(0,mins),'valuation':val,'order':i})
+    total=0; details=[]; used_tribuna=set()
+    def take_tribuna(target_role):
+        wanted=set(role_parts(target_role))
+        for k in range(10,len(enriched)):
+            if k in used_tribuna: continue
+            if wanted & set(role_parts(enriched[k]['role'])):
+                used_tribuna.add(k); return enriched[k]
+        return None
+    for i in range(min(5,len(enriched))):
+        starter=enriched[i]
+        bench=enriched[i+5] if i+5<len(enriched) else None
+        if starter['minutes']==0 and bench is not None:
+            first=bench
+            second=take_tribuna(starter['role'])
+            kinds=('riserva promossa','tribuna')
+        else:
+            first=starter
+            if bench is not None and bench['minutes']==0:
+                second=take_tribuna(bench['role'])
+                kinds=('titolare','tribuna')
+            else:
+                second=bench
+                kinds=('titolare','riserva')
+        rem=40
+        for p,kind in ((first,kinds[0]),(second,kinds[1])):
+            if p is None or rem<=0: continue
+            mins=p['minutes']; take=min(rem,mins)
+            if take<=0: pts=0
+            elif mins<=rem: pts=p['valuation']
+            else: pts=trunc(p['valuation']*rem/mins)
+            total+=pts; rem-=take
+            details.append({'slot':i+1,'slot_role':starter['role'],'kind':kind,'name':p['real_name'],'role':p['role'],'minutes':mins,'valuation':p['valuation'],'used_minutes':take,'fantasy':pts})
     return total,details
 
 # Ruoli di appoggio per riconoscere i copia/incolla del forum anche quando la formazione
@@ -391,18 +441,67 @@ def parse_formation(text):
     for raw in text.splitlines():
         x=infer_line(raw)
         if x: players.append(x)
-    return players[:12]
+    return players[:15]
+
+# Alias frequenti nei post FBL: servono a disambiguare cognomi/abbreviazioni.
+PLAYER_ALIASES={
+    norm(k):v for k,v in {
+    'D Brown':'Darius Brown','Hubb':'Prentiss Hubb','Seljas':'Zac Seljaas','Kamagate':'Ismael Kamagate',
+    'Echenique':'Jaime Echenique','Rossato':'Riccardo Rossato','Bortolani':'Giordano Bortolani',
+    'Petruccelli':'John Petrucelli','Bigelow':'Isaiah Bigelow','Ogbeide':'Derek Ogbeide','Massinburg':'C.J. Massinburg',
+    'Nikolic':'Stefan Nikolic','Tobey':'Mike Tobey','Moore Jr':'Wendell Moore','Chery':'Valentin Chery',
+    'Peters':'Alec Peters','Diarra':'Aliou Diarra','Wright':'Moses Wright','Ross':'Colbey Ross',
+    'Brockington':'Izaiah Brockington','Strautins':'Arturs Strautins','Simonovic':'Marko Simonovic',
+    'Diop':'Ousmane Diop','Zampini':'Federico Zampini','Lever':'Alessandro Lever','Brown III':'John Brown',
+    'Glynn Watson':'Glynn Watson','Hunter Hale':'Hunter Hale','Denzel Valentine':'Denzel Valentine',
+    'Mezie Offurum':'Mezie Offurum','Dominik Olejniczak':'Dominik Olejniczak','Amedeo Della Valle':'Amedeo Della Valle',
+    'Jack White':'Jack White','Paul Eboua':'Paul Eboua','DeWayne Russell':'DeWayne Russell','Eimantas Bendzius':'Eimantas Bendzius',
+    'Barford':'Jaylen Barford','Cappelletti':'Alessandro Cappelletti','Roby':'Isaiah Roby','Jakimovski':'Andrej Jakimovski',
+    'McGlynn':'Nick McGlynn','Pecchia':'Andrea Pecchia','Durham':'Aljami Durham','Olinde':'Louis Olinde',
+    'Thor':'JT Thor','Spencer':'Skylar Spencer','Bucarelli':'Lorenzo Bucarelli','Mawugbe':'Selom Mawugbe','Burnell':'Jason Burnell',
+    'Maddox':'Dante Maddox','Ayayi':'Gerald Ayayi','Brown Charles':'Charles Brown','Macura':'JP Macura','Brown Chad':'Chad Brown',
+    'Galloway':'Langston Galloway','Moraschini':'Riccardo Moraschini','Parks':'Jordan Parks','Alibegovic M.':'Mirza Alibegovic',
+    'Bayehe':'Jordan Bayehe','Baldasso':'Tommaso Baldasso','Miles':'Isaiah Miles','Caruso':'Guglielmo Caruso',
+    'Mannion':'Niccolo Mannion','Holiday':'Aaron Holiday','Alston':'Derrick Alston','Tessitori':'Amedeo Tessitori','Bilan':'Miro Bilan',
+    'Darius Thompson':'Darius Thompson','Moon':'Xavier Moon','Edwards':'Kessler Edwards','Gorham':'Justin Gorham','Onyema':"Ze'Rik Onyema",
+    'Moore':'Charlie Edward Moore','Samuels':'Jermaine Samuels',"Tote'":'Leonardo Tote',
+    'Dowtin':'Jeff Dowtin','Edwards Rob':'Rob Edwards','Frazier':'Trent Frazier','Guduric':'Marko Guduric','Diouf':'Mouhamet Rassoul Diouf',
+    'Spissu':'Marco Spissu','Andrews':'Andrew Andrews','Alibegovic':'Amar Alibegovic','Hall':'Devon Hall','Wiltjer':'Kyle Wiltjer',
+    'Markel B':'Markel Brown','Wheatle':'Carl Wheatle','Emejuru':'Giovanni Emejuru',
+    'Ramsey':"Jahmi'us Ramsey",'Christon':'Semaj Christon','Flagg':'Savion Flagg','Flowers':'Trentyn Flowers','Boakye':'Enoch Boakye',
+    'Olivari':'Quincy Olivari','Calzavara':'Andrea Calzavara','Battle':'Raequan Battle','Alviti':'Davide Alviti','Camara':'Gora Camara',
+    'Librizzi':'Matteo Librizzi','Klintman':'Bo Klintman','Tarczewski':'Kaleb Tarczewski'}.items()
+}
+
+TEAM_OWNERS={
+'pcf_lba':{
+'hot sauce 7':'I Mollo','armando87':"PCF 'Facu' Mastelle",'ronartest':'Basket Padova','gabrio curzio caimi':'Rasta Panthers','sza':'Dinamo Lucura','marco zatti':'Casorzo Lakers','sprizzaug':'Olimpija Ruero','domonator8':'Domonator','roby gullo':'Springfields Isotopes','alex100':'Pikkiatelli Bodio','chi8':'Birrareal','arvydas':'Zalgiris'},
+'pcf_lnp':{
+'paga92':'Si Ok E Poi?','hot sauce 7':'I Mollo','alberto musto':'Team Cento','gabrio curzio caimi':'Rasta Panthers','marco zatti':'Casorzo Lakers','bunt72':'Butter Beater','arvydas':'Zalgiris','filo gallo95':'Chi Burdel','paoloc861':'Liverpaul','sprizzaug':'Olimpija Ruero'},
+'fbl_lba':{'pazzoide198':'Casorzo Lakers','sprizzaug':'Maccabi Ruero','alectro93':'Drink Team','gabrio curzio caimi':'Rasta Panthers','bruno21':'Monza a Spicchi','alphonso ford':'CSKA Basket','filo gallo95':'Furleee','libertas fo':'PBK Dinamo Ronco'}
+}
 
 TEAM_NAMES={
 'pcf_lba':['I Mollo','Casorzo Lakers','Pikkiatelli Bodio',"PCF 'Facu' Mastelle",'Zalgiris','Domonator','Basket Padova','Olimpija Ruero','Dinamo Lucura','Springfields Isotopes','Springfield','Birrareal','Rasta Panthers'],
 'pcf_lnp':['Casorzo Lakers','Chi Burdel','Zalgiris','I Mollo','Si Ok E Poi?','Teamcento','Team Cento','Olimpija Ruero','Liverpaul','Rasta Panthers','Butter Beater'],
-'fbl_lba':[]}
+'fbl_lba':['Drink Team','Rasta Panthers','CSKA Basket','Monza a Spicchi','PBK Dinamo Ronco','Maccabi Ruero','Casorzo Lakers','Furleee']}
+
+def canonical_team(team, competition):
+    # Uniforma gli alias usati nel forum (es. TEAMCENTO / Team Cento).
+    n=norm(team)
+    aliases={'teamcento':'Team Cento','springfield':'Springfields Isotopes'}
+    return aliases.get(n, team)
 
 def detect_team_line(line, competition):
     n=norm(line)
+    # Alcuni post non riportano il nome della squadra: il copia-incolla contiene
+    # però l'username dell'autore. Lo usiamo come secondo identificatore stabile.
+    owner=TEAM_OWNERS.get(competition,{}).get(n)
+    if owner: return canonical_team(owner,competition)
     for team in TEAM_NAMES.get(competition,[]):
         tn=norm(team)
-        if n==tn or (len(n)<45 and tn in n and not ROLE_RE.search(line.upper())): return team
+        if n==tn or (len(n)<45 and tn in n and not ROLE_RE.search(line.upper())):
+            return canonical_team(team,competition)
     return None
 
 def parse_page(text, competition):
@@ -419,14 +518,21 @@ def parse_page(text, competition):
         if len(p)>=5 and (t not in forms or len(p)>len(forms[t])): forms[t]=p
     # accoppiamenti: cerca righe con due nomi squadra e trattino lungo/corto
     matchups=[]
-    for line in lines:
+    matchup_lines=lines
+    if competition=='fbl_lba':
+        for cut,line in enumerate(lines):
+            if norm(line)=='supercoppa':
+                matchup_lines=lines[:cut]
+                break
+    for line in matchup_lines:
         if '–' not in line and ' - ' not in line: continue
         found=[]
         nl=norm(line)
         for team in TEAM_NAMES.get(competition,[]):
-            if norm(team) in nl: found.append(team)
-        # preserva ordine di apparizione
-        found=sorted(set(found), key=lambda t:nl.find(norm(t)))
+            if norm(team) in nl: found.append(canonical_team(team,competition))
+        # preserva ordine di apparizione e rimuove alias duplicati
+        found=list(dict.fromkeys(found))
+        found=sorted(found, key=lambda t:min([nl.find(norm(x)) for x in TEAM_NAMES.get(competition,[]) if canonical_team(x,competition)==t and norm(x) in nl] or [9999]))
         if len(found)>=2 and found[0]!=found[1]:
             pair=(found[0],found[1])
             if pair not in matchups: matchups.append(pair)
@@ -437,10 +543,12 @@ def calculate_page(text, competition, games):
     stats=player_index(games)
     teams={}
     for team,players in forms.items():
-        score,details=score_formation(players,stats)
+        if competition=='fbl_lba': score,details=score_fbl(players,stats,team)
+        else: score,details=score_formation(players,stats)
         teams[team]={'score':score,'players':players,'details':details}
     results=[]
+    bonus=5 if competition=='fbl_lba' else 3
     for home,away in matchups:
         if home in teams and away in teams:
-            results.append({'home':home,'away':away,'home_score':teams[home]['score']+3,'away_score':teams[away]['score'],'home_bonus':3})
+            results.append({'home':home,'away':away,'home_score':teams[home]['score']+bonus,'away_score':teams[away]['score'],'home_bonus':bonus})
     return {'teams':teams,'matchups':results,'detected':list(forms)}
