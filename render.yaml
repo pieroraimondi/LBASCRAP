@@ -3,6 +3,6 @@ services:
     name: lba-tabellini
     runtime: python
     plan: free
-    buildCommand: python -m compileall -q app.py lba_tabellini.py a2_tabellini.py excel_export.py
+    buildCommand: python -m compileall -q app.py lba_tabellini.py a2_tabellini.py excel_export.py fantasy.py
     startCommand: python app.py
     healthCheckPath: /health

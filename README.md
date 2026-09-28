@@ -11,3 +11,8 @@ Il calendario deriva da `Calendario LBA_2627.xlsx` fornito dall'utente (30 giorn
 I 300 link A2 derivano dal file `link_A2_x2627_giornate_1-30.txt` fornito dall'utente. Date, squadre, punteggio e stato A2 vengono letti dal calendario ufficiale LNP (`game_status`: `ready` = da giocare; `finished` = terminata; gli stati live riconosciuti = in corso). I boxscore vengono letti dalla pagina ufficiale della partita quando disponibili. Le giornate vengono rilette dopo al massimo 60 secondi (10 secondi con partite in corso), per recepire eventuali correzioni; l'aggiornamento live dei punteggi avviene ogni 20 secondi. I campi non presenti nel boxscore A2, per esempio `Plus_minus`, restano vuoti.
 
 Per una prova locale: `python app.py`, poi apri `http://localhost:10000`. Non sono richieste librerie esterne.
+
+
+## Fantabasket
+
+La pagina include ora tre aree di calcolo: **PCF LBA**, **PCF LNP** e **FBL LBA**. Il copia/incolla delle formazioni viene conservato nel `localStorage` del browser separatamente per ciascun fantabasket e resta disponibile finché viene sovrascritto o azzerato. Il calcolo usa i tabellini della giornata selezionata; per PCF applica il riempimento dei 40 minuti per ruolo e il +3 alla squadra di casa.
