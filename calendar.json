@@ -1,0 +1,1262 @@
+{
+  "1": [
+    {
+      "id": 25602,
+      "home": "Nutribullet Treviso Basket",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25603,
+      "home": "Umana Reyer Venezia",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25605,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Dolomiti Energia Trentino"
+    },
+    {
+      "id": 25600,
+      "home": "Armani Olimpia Milano",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25601,
+      "home": "Bertram Derthona Tortona",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25607,
+      "home": "APU Old Wild West Udine",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25604,
+      "home": "Maxima Roma",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25606,
+      "home": "Openjobmetis Varese",
+      "away": "Virtus Costa Bologna"
+    }
+  ],
+  "2": [
+    {
+      "id": 25371,
+      "home": "Dolomiti Energia Trentino",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25373,
+      "home": "Napoli Basketball",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25369,
+      "home": "BC Roma",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25374,
+      "home": "Longobardi Scafati Basket",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25372,
+      "home": "Pallacanestro Trieste",
+      "away": "Umana Reyer Venezia"
+    },
+    {
+      "id": 25368,
+      "home": "Virtus Costa Bologna",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25375,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25370,
+      "home": "Tezenis Verona",
+      "away": "Armani Olimpia Milano"
+    }
+  ],
+  "3": [
+    {
+      "id": 25383,
+      "home": "APU Old Wild West Udine",
+      "away": "Dolomiti Energia Trentino"
+    },
+    {
+      "id": 25381,
+      "home": "Openjobmetis Varese",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25376,
+      "home": "Armani Olimpia Milano",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25382,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25380,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25379,
+      "home": "Longobardi Scafati Basket",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25378,
+      "home": "Maxima Roma",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25377,
+      "home": "Umana Reyer Venezia",
+      "away": "Virtus Costa Bologna"
+    }
+  ],
+  "4": [
+    {
+      "id": 25385,
+      "home": "BC Roma",
+      "away": "Umana Reyer Venezia"
+    },
+    {
+      "id": 25391,
+      "home": "Napoli Basketball",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25387,
+      "home": "Dolomiti Energia Trentino",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25390,
+      "home": "Nutribullet Treviso Basket",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25389,
+      "home": "Pallacanestro Trieste",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25386,
+      "home": "Tezenis Verona",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25384,
+      "home": "Virtus Costa Bologna",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25388,
+      "home": "Bertram Derthona Tortona",
+      "away": "Maxima Roma"
+    }
+  ],
+  "5": [
+    {
+      "id": 25399,
+      "home": "Openjobmetis Varese",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25397,
+      "home": "Longobardi Scafati Basket",
+      "away": "Dolomiti Energia Trentino"
+    },
+    {
+      "id": 25393,
+      "home": "Bertram Derthona Tortona",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25392,
+      "home": "Armani Olimpia Milano",
+      "away": "Virtus Costa Bologna"
+    },
+    {
+      "id": 25396,
+      "home": "Maxima Roma",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25394,
+      "home": "Pallacanestro Trieste",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25395,
+      "home": "Umana Reyer Venezia",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25398,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Acqua S.Bernardo Cantù"
+    }
+  ],
+  "6": [
+    {
+      "id": 25406,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25407,
+      "home": "APU Old Wild West Udine",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25403,
+      "home": "Dolomiti Energia Trentino",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25404,
+      "home": "Nutribullet Treviso Basket",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25402,
+      "home": "Tezenis Verona",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25405,
+      "home": "Napoli Basketball",
+      "away": "Umana Reyer Venezia"
+    },
+    {
+      "id": 25401,
+      "home": "BC Roma",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25400,
+      "home": "Virtus Costa Bologna",
+      "away": "Pallacanestro Trieste"
+    }
+  ],
+  "7": [
+    {
+      "id": 25415,
+      "home": "Openjobmetis Varese",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25411,
+      "home": "Pallacanestro Trieste",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25409,
+      "home": "Armani Olimpia Milano",
+      "away": "Dolomiti Energia Trentino"
+    },
+    {
+      "id": 25414,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Umana Reyer Venezia"
+    },
+    {
+      "id": 25413,
+      "home": "Longobardi Scafati Basket",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25412,
+      "home": "Maxima Roma",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25410,
+      "home": "Bertram Derthona Tortona",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25408,
+      "home": "Virtus Costa Bologna",
+      "away": "Tezenis Verona"
+    }
+  ],
+  "8": [
+    {
+      "id": 25419,
+      "home": "Umana Reyer Venezia",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25422,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25423,
+      "home": "APU Old Wild West Udine",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25417,
+      "home": "Dolomiti Energia Trentino",
+      "away": "Virtus Costa Bologna"
+    },
+    {
+      "id": 25418,
+      "home": "Nutribullet Treviso Basket",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25421,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25420,
+      "home": "Napoli Basketball",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25416,
+      "home": "BC Roma",
+      "away": "Tezenis Verona"
+    }
+  ],
+  "9": [
+    {
+      "id": 25426,
+      "home": "Dolomiti Energia Trentino",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25431,
+      "home": "Openjobmetis Varese",
+      "away": "Umana Reyer Venezia"
+    },
+    {
+      "id": 25428,
+      "home": "Pallacanestro Trieste",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25425,
+      "home": "Tezenis Verona",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25430,
+      "home": "Longobardi Scafati Basket",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25429,
+      "home": "Maxima Roma",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25427,
+      "home": "Bertram Derthona Tortona",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25424,
+      "home": "Virtus Costa Bologna",
+      "away": "BC Roma"
+    }
+  ],
+  "10": [
+    {
+      "id": 25435,
+      "home": "Umana Reyer Venezia",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25438,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25439,
+      "home": "APU Old Wild West Udine",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25434,
+      "home": "Nutribullet Treviso Basket",
+      "away": "Virtus Costa Bologna"
+    },
+    {
+      "id": 25433,
+      "home": "Armani Olimpia Milano",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25437,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25436,
+      "home": "Napoli Basketball",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25432,
+      "home": "BC Roma",
+      "away": "Dolomiti Energia Trentino"
+    }
+  ],
+  "11": [
+    {
+      "id": 25444,
+      "home": "Dolomiti Energia Trentino",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25447,
+      "home": "Openjobmetis Varese",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25445,
+      "home": "Pallacanestro Trieste",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25443,
+      "home": "Armani Olimpia Milano",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25442,
+      "home": "Tezenis Verona",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25446,
+      "home": "Longobardi Scafati Basket",
+      "away": "Umana Reyer Venezia"
+    },
+    {
+      "id": 25441,
+      "home": "BC Roma",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25440,
+      "home": "Virtus Costa Bologna",
+      "away": "APU Old Wild West Udine"
+    }
+  ],
+  "12": [
+    {
+      "id": 25450,
+      "home": "Umana Reyer Venezia",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25454,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "Dolomiti Energia Trentino"
+    },
+    {
+      "id": 25455,
+      "home": "APU Old Wild West Udine",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25449,
+      "home": "Nutribullet Treviso Basket",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25453,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Virtus Costa Bologna"
+    },
+    {
+      "id": 25451,
+      "home": "Napoli Basketball",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25452,
+      "home": "Maxima Roma",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25448,
+      "home": "Bertram Derthona Tortona",
+      "away": "Longobardi Scafati Basket"
+    }
+  ],
+  "13": [
+    {
+      "id": 25463,
+      "home": "APU Old Wild West Udine",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25462,
+      "home": "Openjobmetis Varese",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25460,
+      "home": "Pallacanestro Trieste",
+      "away": "Dolomiti Energia Trentino"
+    },
+    {
+      "id": 25459,
+      "home": "Armani Olimpia Milano",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25458,
+      "home": "Tezenis Verona",
+      "away": "Umana Reyer Venezia"
+    },
+    {
+      "id": 25461,
+      "home": "Longobardi Scafati Basket",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25457,
+      "home": "BC Roma",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25456,
+      "home": "Virtus Costa Bologna",
+      "away": "Bertram Derthona Tortona"
+    }
+  ],
+  "14": [
+    {
+      "id": 25467,
+      "home": "Umana Reyer Venezia",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25471,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25465,
+      "home": "Dolomiti Energia Trentino",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25464,
+      "home": "Armani Olimpia Milano",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25470,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25468,
+      "home": "Napoli Basketball",
+      "away": "Virtus Costa Bologna"
+    },
+    {
+      "id": 25469,
+      "home": "Maxima Roma",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25466,
+      "home": "Bertram Derthona Tortona",
+      "away": "Pallacanestro Trieste"
+    }
+  ],
+  "15": [
+    {
+      "id": 25479,
+      "home": "APU Old Wild West Udine",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25475,
+      "home": "Dolomiti Energia Trentino",
+      "away": "Umana Reyer Venezia"
+    },
+    {
+      "id": 25477,
+      "home": "Nutribullet Treviso Basket",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25478,
+      "home": "Openjobmetis Varese",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25476,
+      "home": "Pallacanestro Trieste",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25474,
+      "home": "Tezenis Verona",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25473,
+      "home": "BC Roma",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25472,
+      "home": "Virtus Costa Bologna",
+      "away": "Acqua S.Bernardo Cantù"
+    }
+  ],
+  "16": [
+    {
+      "id": 25482,
+      "home": "Umana Reyer Venezia",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25487,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25486,
+      "home": "Openjobmetis Varese",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25480,
+      "home": "Armani Olimpia Milano",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25485,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25484,
+      "home": "Longobardi Scafati Basket",
+      "away": "Virtus Costa Bologna"
+    },
+    {
+      "id": 25483,
+      "home": "Maxima Roma",
+      "away": "Dolomiti Energia Trentino"
+    },
+    {
+      "id": 25481,
+      "home": "Bertram Derthona Tortona",
+      "away": "APU Old Wild West Udine"
+    }
+  ],
+  "17": [
+    {
+      "id": 25495,
+      "home": "APU Old Wild West Udine",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25491,
+      "home": "Dolomiti Energia Trentino",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25493,
+      "home": "Nutribullet Treviso Basket",
+      "away": "Umana Reyer Venezia"
+    },
+    {
+      "id": 25492,
+      "home": "Pallacanestro Trieste",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25490,
+      "home": "Tezenis Verona",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25494,
+      "home": "Napoli Basketball",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25489,
+      "home": "BC Roma",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25488,
+      "home": "Virtus Costa Bologna",
+      "away": "Armani Olimpia Milano"
+    }
+  ],
+  "18": [
+    {
+      "id": 25499,
+      "home": "Umana Reyer Venezia",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25503,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25498,
+      "home": "Nutribullet Treviso Basket",
+      "away": "Dolomiti Energia Trentino"
+    },
+    {
+      "id": 25497,
+      "home": "Pallacanestro Trieste",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25502,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25501,
+      "home": "Longobardi Scafati Basket",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25500,
+      "home": "Maxima Roma",
+      "away": "Virtus Costa Bologna"
+    },
+    {
+      "id": 25496,
+      "home": "Bertram Derthona Tortona",
+      "away": "BC Roma"
+    }
+  ],
+  "19": [
+    {
+      "id": 25508,
+      "home": "Dolomiti Energia Trentino",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25511,
+      "home": "Openjobmetis Varese",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25507,
+      "home": "Armani Olimpia Milano",
+      "away": "Umana Reyer Venezia"
+    },
+    {
+      "id": 25506,
+      "home": "Tezenis Verona",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25510,
+      "home": "Longobardi Scafati Basket",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25509,
+      "home": "Napoli Basketball",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25505,
+      "home": "BC Roma",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25504,
+      "home": "Virtus Costa Bologna",
+      "away": "UNA Hotels Reggio Emilia"
+    }
+  ],
+  "20": [
+    {
+      "id": 25515,
+      "home": "Umana Reyer Venezia",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25518,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25519,
+      "home": "APU Old Wild West Udine",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25514,
+      "home": "Nutribullet Treviso Basket",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25513,
+      "home": "Pallacanestro Trieste",
+      "away": "Virtus Costa Bologna"
+    },
+    {
+      "id": 25516,
+      "home": "Napoli Basketball",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25517,
+      "home": "Maxima Roma",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25512,
+      "home": "Bertram Derthona Tortona",
+      "away": "Dolomiti Energia Trentino"
+    }
+  ],
+  "21": [
+    {
+      "id": 25527,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25523,
+      "home": "Dolomiti Energia Trentino",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25526,
+      "home": "Openjobmetis Varese",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25522,
+      "home": "Armani Olimpia Milano",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25525,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25524,
+      "home": "Longobardi Scafati Basket",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25521,
+      "home": "BC Roma",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25520,
+      "home": "Virtus Costa Bologna",
+      "away": "Umana Reyer Venezia"
+    }
+  ],
+  "22": [
+    {
+      "id": 25532,
+      "home": "Umana Reyer Venezia",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25535,
+      "home": "APU Old Wild West Udine",
+      "away": "Virtus Costa Bologna"
+    },
+    {
+      "id": 25531,
+      "home": "Nutribullet Treviso Basket",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25530,
+      "home": "Pallacanestro Trieste",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25528,
+      "home": "Tezenis Verona",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25533,
+      "home": "Napoli Basketball",
+      "away": "Dolomiti Energia Trentino"
+    },
+    {
+      "id": 25534,
+      "home": "Maxima Roma",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25529,
+      "home": "Bertram Derthona Tortona",
+      "away": "Openjobmetis Varese"
+    }
+  ],
+  "23": [
+    {
+      "id": 25543,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25540,
+      "home": "Nutribullet Treviso Basket",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25542,
+      "home": "Openjobmetis Varese",
+      "away": "Dolomiti Energia Trentino"
+    },
+    {
+      "id": 25538,
+      "home": "Armani Olimpia Milano",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25537,
+      "home": "Tezenis Verona",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25541,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25536,
+      "home": "BC Roma",
+      "away": "Virtus Costa Bologna"
+    },
+    {
+      "id": 25539,
+      "home": "Bertram Derthona Tortona",
+      "away": "Umana Reyer Venezia"
+    }
+  ],
+  "24": [
+    {
+      "id": 25551,
+      "home": "APU Old Wild West Udine",
+      "away": "Umana Reyer Venezia"
+    },
+    {
+      "id": 25545,
+      "home": "Dolomiti Energia Trentino",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25546,
+      "home": "Pallacanestro Trieste",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25550,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25549,
+      "home": "Longobardi Scafati Basket",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25547,
+      "home": "Napoli Basketball",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25548,
+      "home": "Maxima Roma",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25544,
+      "home": "Virtus Costa Bologna",
+      "away": "Openjobmetis Varese"
+    }
+  ],
+  "25": [
+    {
+      "id": 25555,
+      "home": "Umana Reyer Venezia",
+      "away": "Dolomiti Energia Trentino"
+    },
+    {
+      "id": 25559,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25554,
+      "home": "Nutribullet Treviso Basket",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25558,
+      "home": "Openjobmetis Varese",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25553,
+      "home": "Armani Olimpia Milano",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25552,
+      "home": "Tezenis Verona",
+      "away": "Virtus Costa Bologna"
+    },
+    {
+      "id": 25556,
+      "home": "Napoli Basketball",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25557,
+      "home": "Maxima Roma",
+      "away": "Bertram Derthona Tortona"
+    }
+  ],
+  "26": [
+    {
+      "id": 25565,
+      "home": "Umana Reyer Venezia",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25567,
+      "home": "APU Old Wild West Udine",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25562,
+      "home": "Dolomiti Energia Trentino",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25564,
+      "home": "Pallacanestro Trieste",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25566,
+      "home": "Longobardi Scafati Basket",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25561,
+      "home": "BC Roma",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25563,
+      "home": "Bertram Derthona Tortona",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25560,
+      "home": "Virtus Costa Bologna",
+      "away": "Napoli Basketball"
+    }
+  ],
+  "27": [
+    {
+      "id": 25575,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "Virtus Costa Bologna"
+    },
+    {
+      "id": 25569,
+      "home": "Dolomiti Energia Trentino",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25570,
+      "home": "Nutribullet Treviso Basket",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25574,
+      "home": "Openjobmetis Varese",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25568,
+      "home": "Tezenis Verona",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25573,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25571,
+      "home": "Napoli Basketball",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25572,
+      "home": "Maxima Roma",
+      "away": "Umana Reyer Venezia"
+    }
+  ],
+  "28": [
+    {
+      "id": 25581,
+      "home": "Umana Reyer Venezia",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25583,
+      "home": "APU Old Wild West Udine",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25579,
+      "home": "Armani Olimpia Milano",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25578,
+      "home": "Tezenis Verona",
+      "away": "Dolomiti Energia Trentino"
+    },
+    {
+      "id": 25582,
+      "home": "Longobardi Scafati Basket",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25577,
+      "home": "BC Roma",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25580,
+      "home": "Bertram Derthona Tortona",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25576,
+      "home": "Virtus Costa Bologna",
+      "away": "Nutribullet Treviso Basket"
+    }
+  ],
+  "29": [
+    {
+      "id": 25590,
+      "home": "Acqua S.Bernardo Cantù",
+      "away": "Umana Reyer Venezia"
+    },
+    {
+      "id": 25591,
+      "home": "APU Old Wild West Udine",
+      "away": "Nutribullet Treviso Basket"
+    },
+    {
+      "id": 25585,
+      "home": "Dolomiti Energia Trentino",
+      "away": "BC Roma"
+    },
+    {
+      "id": 25587,
+      "home": "Pallacanestro Trieste",
+      "away": "Napoli Basketball"
+    },
+    {
+      "id": 25584,
+      "home": "Armani Olimpia Milano",
+      "away": "Tezenis Verona"
+    },
+    {
+      "id": 25589,
+      "home": "UNA Hotels Reggio Emilia",
+      "away": "Longobardi Scafati Basket"
+    },
+    {
+      "id": 25588,
+      "home": "Maxima Roma",
+      "away": "Openjobmetis Varese"
+    },
+    {
+      "id": 25586,
+      "home": "Bertram Derthona Tortona",
+      "away": "Virtus Costa Bologna"
+    }
+  ],
+  "30": [
+    {
+      "id": 25596,
+      "home": "Umana Reyer Venezia",
+      "away": "Pallacanestro Trieste"
+    },
+    {
+      "id": 25595,
+      "home": "Nutribullet Treviso Basket",
+      "away": "Armani Olimpia Milano"
+    },
+    {
+      "id": 25599,
+      "home": "Openjobmetis Varese",
+      "away": "UNA Hotels Reggio Emilia"
+    },
+    {
+      "id": 25594,
+      "home": "Tezenis Verona",
+      "away": "Bertram Derthona Tortona"
+    },
+    {
+      "id": 25598,
+      "home": "Longobardi Scafati Basket",
+      "away": "Maxima Roma"
+    },
+    {
+      "id": 25597,
+      "home": "Napoli Basketball",
+      "away": "Acqua S.Bernardo Cantù"
+    },
+    {
+      "id": 25593,
+      "home": "BC Roma",
+      "away": "APU Old Wild West Udine"
+    },
+    {
+      "id": 25592,
+      "home": "Virtus Costa Bologna",
+      "away": "Dolomiti Energia Trentino"
+    }
+  ]
+}
