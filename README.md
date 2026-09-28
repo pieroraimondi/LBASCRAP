@@ -31,3 +31,6 @@ Test di regressione G1 usati per il motore:
 - PCF LBA: Basket Padova – Olimpija Ruero **75–57**.
 - PCF LNP: Si Ok E Poi? – I Mollo **52–108**.
 - FBL LBA: Drink Team – Rasta Panthers **61–122**; CSKA Basket – Monza a Spicchi **147–139**; PBK Dinamo Ronco – Maccabi Ruero **98–100**; Casorzo Lakers – Furleee **87–79**.
+
+### Motore PCF — correzione calcolo
+Il calcolo PCF replica ora letteralmente il foglio `calcolatore`: primi 5 titolari per slot PM/G/AP/AG/C, successivi 5 panchinari negli stessi slot; 11° e 12° usano i minuti residui in base al ruolo dichiarato. Per i doppi ruoli i minuti disponibili sono la somma dei residui dei due slot compatibili; dopo l'11° i suoi minuti reali vengono sottratti da ciascuno slot compatibile come nel foglio Excel. Non viene effettuata alcuna ottimizzazione automatica del ruolo.

@@ -53,54 +53,83 @@ def parse_formation(text):
     return players[:12]
 
 def score_formation(players, stats):
+    """Motore PCF, replica letterale del foglio ``calcolatore``.
+
+    Ordine formazione: 5 titolari (PM,G,AP,AG,C), 5 panchinari negli stessi
+    slot, poi 11° e 12°. I primi dieci NON vengono riallocati in base al ruolo
+    naturale: il loro slot e' determinato dalla posizione nella formazione.
+
+    L'11°/12° usa invece il ruolo dichiarato e la matrice di compatibilita'
+    dell'Excel. Un doppio ruolo dispone della SOMMA dei minuti residui dei due
+    slot compatibili. Dopo l'11°, i suoi minuti reali vengono sottratti (con
+    minimo zero) da ciascuno slot compatibile, esattamente come nelle formule
+    H26:H34 del foglio. Il 12° usa i residui cosi' ottenuti.
+    """
     enriched=[]
-    for i,p in enumerate(players):
+    for i,p in enumerate(players[:12]):
         real,mins,val=best_match(p['name'],stats)
-        enriched.append({**p,'real_name':real,'minutes':mins,'valuation':val,'order':i})
+        enriched.append({**p,'real_name':real,'minutes':max(0,mins),'valuation':val,'order':i})
 
-    total=0; details=[]; remaining_by_slot={}
-    # Prima calcola titolare + panchinaro assegnati allo slot di formazione.
-    # L'11° e il 12° vengono gestiti dopo, globalmente: ciascuno può coprire
-    # un solo ruolo compatibile, scegliendo l'allocazione che massimizza il punteggio.
+    total=0; details=[]
+
+    # Excel J5:J9: titolari, cap individuale a 40', con FLOOR.
     for i,slot in enumerate(ROLES):
-        remaining=40
-        for j in (i,i+5):
-            if j>=len(enriched) or remaining<=0: continue
-            p=enriched[j]
-            mins=max(0,p['minutes']); take=min(remaining,mins)
-            pts=p['valuation'] if mins<=remaining else trunc(p['valuation']*remaining/mins)
-            if take<=0: pts=0
-            details.append({'slot':slot,'name':p['real_name'],'role':p['role'],'minutes':mins,'valuation':p['valuation'],'used_minutes':take,'fantasy':pts})
-            total+=pts; remaining-=take
-        remaining_by_slot[slot]=remaining
+        if i>=len(enriched): continue
+        p=enriched[i]; mins=p['minutes']; val=p['valuation']
+        raw = (val/mins*40) if mins>40 and mins else val
+        pts=trunc(raw)
+        total+=pts
+        details.append({'slot':slot,'kind':'titolare','name':p['real_name'],'role':p['role'],
+                        'minutes':mins,'valuation':val,'used_minutes':min(40,mins),'fantasy':pts})
 
-    reserves=[enriched[j] for j in (10,11) if j<len(enriched)]
+    # Excel J11:J15: panchina. Il residuo usa 40 - minuti REALI del titolare
+    # (non MIN(40,...)); e' intenzionale per aderire al foglio alla lettera.
+    for i,slot in enumerate(ROLES):
+        j=i+5
+        if j>=len(enriched): continue
+        p=enriched[j]; mins=p['minutes']; val=p['valuation']
+        starter_mins=enriched[i]['minutes'] if i<len(enriched) else 0
+        available=40-starter_mins
+        if mins==0:
+            raw=0
+        elif mins>available:
+            raw=val/mins*available
+        else:
+            raw=val
+        pts=trunc(raw)
+        total+=pts
+        details.append({'slot':slot,'kind':'panchina','name':p['real_name'],'role':p['role'],
+                        'minutes':mins,'valuation':val,'used_minutes':max(0,min(mins,available)),'fantasy':pts})
 
-    def reserve_points(p,slot,remaining):
-        if slot not in role_parts(p['role']) or remaining<=0: return None
-        mins=max(0,p['minutes']); take=min(remaining,mins)
-        pts=p['valuation'] if mins<=remaining else trunc(p['valuation']*remaining/mins)
-        if take<=0: pts=0
-        return pts,take
+    # Excel G26:G30: residui dopo i primi dieci, qui invece con MIN(40,...).
+    rem={}
+    for i,slot in enumerate(ROLES):
+        sm=enriched[i]['minutes'] if i<len(enriched) else 0
+        bm=enriched[i+5]['minutes'] if i+5<len(enriched) else 0
+        rem[slot]=max(0,40-(min(40,sm)+min(40,bm)))
 
-    # Con al massimo due riserve basta provare tutte le destinazioni possibili.
-    choices=[]
-    for p in reserves:
-        choices.append([None]+[slot for slot in ROLES if slot in role_parts(p['role'])])
-    best=(0,[])
-    import itertools
-    for assignment in itertools.product(*choices) if choices else [()]:
-        rem=dict(remaining_by_slot); gain=0; alloc=[]
-        for p,slot in zip(reserves,assignment):
-            if slot is None: continue
-            rp=reserve_points(p,slot,rem[slot])
-            if rp is None: continue
-            pts,take=rp
-            gain+=pts; rem[slot]-=take; alloc.append((p,slot,pts,take))
-        if gain>best[0]: best=(gain,alloc)
-    total+=best[0]
-    for p,slot,pts,take in best[1]:
-        details.append({'slot':slot,'name':p['real_name'],'role':p['role'],'minutes':max(0,p['minutes']),'valuation':p['valuation'],'used_minutes':take,'fantasy':pts})
+    def compatible_slots(role):
+        # Matrice B26:D30 / E26:E34 dell'Excel.
+        parts=role_parts(role)
+        return [slot for slot in ROLES if slot in parts]
+
+    # 11° e 12°: disponibilita' = somma residui dei ruoli compatibili.
+    # Dopo ogni giocatore, i suoi minuti vengono sottratti da OGNI residuo
+    # compatibile (non distribuiti/ottimizzati): e' la logica esatta del foglio.
+    for j,label in ((10,'11°'),(11,'12°')):
+        if j>=len(enriched): continue
+        p=enriched[j]; mins=p['minutes']; val=p['valuation']
+        slots=compatible_slots(p['role'])
+        available=sum(rem[s] for s in slots)
+        raw=(val/mins*available) if mins>available and mins else val
+        pts=trunc(raw)
+        total+=pts
+        details.append({'slot':'/'.join(slots) if slots else p['role'],'kind':label,
+                        'name':p['real_name'],'role':p['role'],'minutes':mins,'valuation':val,
+                        'used_minutes':min(mins,available),'fantasy':pts,'available_minutes':available})
+        for slot in slots:
+            rem[slot]=max(0,rem[slot]-mins)
+
     return total,details
 
 def score_fbl(players, stats, team=None):
