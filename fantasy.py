@@ -166,17 +166,20 @@ def score_formation(players, stats):
     return total,details
 
 def score_fbl(players, stats, team=None):
-    """Motore FBL: 5 titolari, 5 riserve abbinate per slot, fino a 3 tribuna.
-    La tribuna interviene solo per un assente (0 minuti) nei primi 10: se e'
-    assente il titolare, la riserva sale titolare e il primo tribunaro di ruolo
-    compatibile prende il posto in panchina; se e' assente la riserva, il
-    tribunaro compatibile la sostituisce. Ogni slot copre al massimo 40 minuti.
+    """Motore FBL fedele al benchmark ufficiale G1.
+
+    La formazione POSTATA e' immutabile: posizioni 0-4 titolari, 5-9 riserve
+    abbinate per slot, 10-12 tribuna. Solo un DNP (0 minuti) attiva una
+    sostituzione: se manca il titolare sale LA SUA riserva; il posto liberato
+    in riserva viene coperto dal primo tribunaro compatibile. Se manca soltanto
+    la riserva, entra direttamente il primo tribunaro compatibile.
+    Il roster/alias serve esclusivamente a riconoscere il nome, mai a cambiare
+    ordine o impiego. Ogni coppia titolare-riserva copre 40 minuti.
+    Il riproporzionamento FBL usa FLOOR, anche sui negativi (come nel benchmark ufficiale).
     """
     enriched=[]
     for i,p in enumerate(players[:13]):
         lookup=p['name']
-        if team=='Furleee' and norm(lookup)=='edwards': lookup='Rob Edwards'
-        if team=='CSKA Basket' and norm(lookup)=='edwards': lookup='Kessler Edwards'
         real,mins,val=best_match(lookup,stats)
         enriched.append({**p,'real_name':real,'minutes':max(0,mins),'valuation':val,'order':i})
     total=0; details=[]; used_tribuna=set()
@@ -585,18 +588,21 @@ def parse_formation(text, learned_aliases=None, roster_players=None, competition
 
     # Marker che chiudono realmente il contenuto del post. Dopo uno di questi non
     # cerchiamo più giocatori: firme, palmares e post successivi non possono entrare.
-    hard_stop=(
-        'modificato da','messaggio privato','multiquote','view post','inviato il:',
-        'forza basket','www.','youtube','myspace','sign by','palmares',
+    hard_stop=tuple(norm(x) for x in (
+        'modificato da','messaggio privato','multiquote','view post','inviato il',
+        'forza basket','www','youtube','myspace','sign by','palmares',
         'campione serie','terzo posto','promozione in serie','fanta world cup'
-    )
+    ))
     # Righe di servizio che possono stare in mezzo alla formazione ma non sono giocatori.
-    soft_skip=(
-        'titolari','riserve','panchina','tribuna','esclusi','modulo:',
-        'gruppo:','messaggi:','punteggio:','provenienza:','stato:','avatar',
+    # I confronti avvengono sulla stessa normalizzazione usata per la riga: in questo
+    # modo "Punteggio: 0", "Stato:" e "Provenienza: Sardegna" non possono mai
+    # essere scambiati per giocatori e spostare tutti gli slot della formazione.
+    soft_skip=tuple(norm(x) for x in (
+        'titolari','riserve','panchina','tribuna','esclusi','modulo',
+        'gruppo','messaggi','punteggio','provenienza','stato','avatar',
         'advanced member','member','admin pcf forum','lega a1','lega a2','dnb','dnc',
         'promozione','eurochallenge','olympic','c regionale','fantabasket'
-    )
+    ))
 
     for raw in text.splitlines():
         line=raw.strip().strip('\\').strip()
