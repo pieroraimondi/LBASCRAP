@@ -45,3 +45,6 @@ Se un nome non è risolto con sufficiente certezza, il calcolo viene bloccato e 
 
 ## Validazione nomi e scelta dal roster
 Quando un nome della formazione non viene risolto con certezza, la sezione Fantabasket mostra la proposta ricavata dal roster e consente di convalidarla. Se la proposta manca o non è corretta, **Scegli dal roster** apre il roster della squadra con ricerca per nome/ruolo. Ogni scelta manuale viene salvata come alias specifico per lega+squadra+nome scritto nel forum e riutilizzata nelle giornate successive. Gli alias manuali sono visibili e cancellabili dalla sezione **Alias memorizzati**. **Convalida tutti** salva in blocco solo le righe che hanno una proposta automatica.
+
+## EuroLeague 2026/27 — test scarico dati
+Aggiunto il terzo tab **EuroLeague** (E2026, 38 giornate). Il server legge il calendario dal feed pubblico v2 EuroLeague e, per le gare già giocate, il boxscore `/games/{gameCode}/stats`; il mirror Incrowd è usato come fallback. L'output viene normalizzato nello stesso schema di LBA/LNP, incluso **Minuti, Punti e Valutazione (PIR)**, ed è esportabile in Excel. In questa versione EuroLeague è volutamente collegata **solo allo scarico/visualizzazione dati**, non al motore Fantabasket PCF/FBL.

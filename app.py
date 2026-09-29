@@ -14,6 +14,7 @@ from a2_tabellini import date_iso, read_boxscore
 from excel_export import make_xlsx
 from lba_tabellini import fetch_game
 from fantasy import calculate_page
+from euroleague_tabellini import games_for_round, game_from_schedule
 
 ROOT = Path(__file__).parent
 HTML = (ROOT / 'index.html').read_bytes()
@@ -164,6 +165,25 @@ def get_a2_scores(day):
             for g in games]
 
 
+def get_euro_day(day):
+    with LOCK:
+        cached = CACHE.get(('euro', day))
+        if cached and time.monotonic() - cached[0] < 60:
+            return cached[1]
+    schedule_rows = games_for_round(day)
+    # Intenzionalmente sequenziale: il feed EuroLeague applica rate limiting.
+    games = [game_from_schedule(row, day, with_players=True) for row in schedule_rows]
+    result = {'day': int(day), 'games': games}
+    with LOCK:
+        CACHE[('euro', day)] = (time.monotonic(), result)
+    return result
+
+
+def get_euro_scores(day):
+    return [{key: g[key] for key in ('id','status','score','periods','quarter','datetime')}
+            for g in [game_from_schedule(row, day, with_players=False) for row in games_for_round(day)]]
+
+
 class Handler(BaseHTTPRequestHandler):
     def respond(self, status, body, content_type, attachment=None):
         self.send_response(status)
@@ -220,15 +240,19 @@ class Handler(BaseHTTPRequestHandler):
             params = parse_qs(url.query)
             day = params.get('day', [''])[0]
             league = params.get('league', ['lba'])[0]
-            if league not in ('lba', 'a2') or not re.fullmatch(r'\d{1,2}', day) or day not in (CALENDAR if league == 'lba' else A2_CALENDAR):
+            if league not in ('lba', 'a2', 'euro') or not re.fullmatch(r'\d{1,2}', day):
+                return self.json_response(400, {'error': 'Giornata non valida.'})
+            if league == 'lba' and day not in CALENDAR or league == 'a2' and day not in A2_CALENDAR or league == 'euro' and not (1 <= int(day) <= 38):
                 return self.json_response(400, {'error': 'Giornata non valida.'})
             if url.path == '/api/scores':
                 try:
-                    return self.json_response(200, {'games': get_lba_scores(day) if league == 'lba' else get_a2_scores(day)})
+                    score_fun = {'lba': get_lba_scores, 'a2': get_a2_scores, 'euro': get_euro_scores}[league]
+                    return self.json_response(200, {'games': score_fun(day)})
                 except Exception as exc:
                     return self.json_response(502, {'error': str(exc)})
             try:
-                result = get_lba_day(day) if league == 'lba' else get_a2_day(day)
+                day_fun = {'lba': get_lba_day, 'a2': get_a2_day, 'euro': get_euro_day}[league]
+                result = day_fun(day)
             except Exception as exc:
                 return self.json_response(502, {'error': str(exc)})
             if url.path == '/api/day':
@@ -236,12 +260,12 @@ class Handler(BaseHTTPRequestHandler):
             if any(g['error'] for g in result['games']):
                 return self.json_response(502, {'error': 'Alcune partite non sono state lette: riprova prima di esportare.'})
             content = make_xlsx(int(day), result['games'])
-            name = 'LBA' if league == 'lba' else 'LNP_A2'
+            name = {'lba':'LBA','a2':'LNP_A2','euro':'EUROLEAGUE'}[league]
             return self.respond(200, content, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', f'{name}_2026-27_giornata_{int(day):02d}.xlsx')
         self.json_response(404, {'error': 'Pagina non trovata.'})
 
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', '10000'))
-    print(f'Server LBA / LNP A2 in ascolto sulla porta {port}', flush=True)
+    print(f'Server LBA / LNP A2 / EuroLeague in ascolto sulla porta {port}', flush=True)
     ThreadingHTTPServer(('0.0.0.0', port), Handler).serve_forever()
