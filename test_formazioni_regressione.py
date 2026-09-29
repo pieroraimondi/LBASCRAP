@@ -20,7 +20,7 @@ assert best_match('Valentin Chery',idx)[1:] == (19,14)
 print('OK: test regressione formazioni')
 
 # Identity regression: same surname must never override a stronger full-name match.
-from fantasy import best_match, norm
+from fantasy import best_match, norm, roster_match, score_fbl, player_index
 idx={norm('Charlie Moore'):('Charlie Moore',25,9), norm('Wendell Moore Jr'):('Wendell Moore Jr',0,0)}
 assert best_match('Wendell Moore',idx)[0]=='Wendell Moore Jr'
 
@@ -53,3 +53,50 @@ assert parsed[3]['role']=='C' and parsed[3]['canonical']=='Aliou Diarra', parsed
 diarra_details=[x for x in r['teams']['Maccabi Ruero']['details'] if norm(x.get('name',''))==norm('Aliou Diarra')]
 assert diarra_details and diarra_details[0]['slot_role']=='C' and diarra_details[0]['role']=='C', diarra_details
 print('OK: identity DNP + learned alias guard + FBL posted-role invariants')
+
+
+# Poisoned learned aliases must never remap one roster player to another identity.
+r=DEFAULT_ROSTERS['fbl_lba']['Maccabi Ruero']
+poison={norm('CHERY'):'Aliou Diarra', norm('DIARRA'):'Valentin Chery'}
+assert roster_match('CHERY','A',r,poison,'Maccabi Ruero')[0]=='Valentin Chery'
+assert roster_match('DIARRA','C',r,poison,'Maccabi Ruero')[0]=='Aliou Diarra'
+
+# Exact FBL detail regression for Maccabi G1 (not only the total).
+S2={norm(n):(n,m,v) for n,m,v in [
+('Wendell Moore',0,0),('Valentin Chery',19,14),('Alec Peters',0,0),('Aliou Diarra',15,6),('Moses Wright',22,16),
+('Colbey Ross',27,24),('Izaiah Brockington',0,0),('Arturs Strautins',26,7),('Marko Simonovic',25,21),('Ousmane Diop',13,3),
+('Federico Zampini',36,19),('Alessandro Lever',23,5),('John Brown',22,15)]}
+ps=[{'role':r,'name':n} for r,n in [('G','Wendell Moore'),('A','Valentin Chery'),('A','Alec Peters'),('C','Aliou Diarra'),('C','Moses Wright'),('G','Colbey Ross'),('G','Izaiah Brockington'),('A','Arturs Strautins'),('A','Marko Simonovic'),('C','Ousmane Diop'),('G','Federico Zampini'),('A','Alessandro Lever'),('C','John Brown')]]
+score,det=score_fbl(ps,S2,'Maccabi Ruero')
+assert score==100
+assert [(x['name'],x['fantasy']) for x in det] == [('Colbey Ross',24),('Federico Zampini',6),('Valentin Chery',14),('Arturs Strautins',7),('Alessandro Lever',3),('Aliou Diarra',6),('Marko Simonovic',21),('Moses Wright',16),('Ousmane Diop',3)]
+
+# PCF LNP apostrophe/case regression: Dell'Agnello must hook to 13 in 26.
+idx=player_index([{'players':[{'Giocatore':"Giacomo Dell'agnello",'Minuti':26,'Valutazione':13}]}])
+assert best_match('Giacomo Dell’Agnello',idx)[1:] == (26,13)
+print('OK: poisoned aliases + exact FBL detail + DellAgnello')
+
+# End-to-end FBL with poisoned browser dictionary: detail must remain official.
+raw="""Sprizzaug
+view post Inviato il: 24/9/2026, 11:36
+G MOORE JR
+A CHERY
+A PETERS
+C DIARRA
+C WRIGHT
+G ROSS
+G BROCKINGTON
+A STRAUTINS
+A SIMONOVIC
+C DIOP
+G ZAMPINI
+A LEVER
+C BROWN III
+Messaggio Privato"""
+rows=[('Wendell Moore',0,0),('Valentin Chery',19,14),('Alec Peters',0,0),('Aliou Diarra',15,6),('Moses Wright',22,16),('Colbey Ross',27,24),('Izaiah Brockington',0,0),('Arturs Strautins',26,7),('Marko Simonovic',25,21),('Ousmane Diop',13,3),('Federico Zampini',36,19),('Alessandro Lever',23,5),('John Brown',22,15)]
+games=[{'players':[{'Giocatore':n,'Minuti':m,'Valutazione':v} for n,m,v in rows]}]
+calc=calculate_page(raw,'fbl_lba',games,poison)
+d=calc['teams']['Maccabi Ruero']['details']
+assert calc['teams']['Maccabi Ruero']['score']==100
+assert [x['name'] for x in d]==['Colbey Ross','Federico Zampini','Valentin Chery','Arturs Strautins','Alessandro Lever','Aliou Diarra','Marko Simonovic','Moses Wright','Ousmane Diop']
+print('OK: end-to-end poisoned dictionary FBL')

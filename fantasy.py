@@ -7,7 +7,11 @@ ROLES=('PM','G','AP','AG','C')
 ROLE_RE=re.compile(r'(?<![A-Z])(?:PM/G|G/AP|AP/AG|AG/C|PM|AP|AG|G|A|C)(?![A-Z])',re.I)
 
 def norm(s):
-    s=unicodedata.normalize('NFKD',str(s)).encode('ascii','ignore').decode().lower()
+    # Uniforma prima apostrofi tipografici e trattini Unicode: se li eliminassimo
+    # durante la conversione ASCII, Dell’Agnello diventerebbe "dellagnello" mentre
+    # Dell'Agnello diventerebbe "dell agnello", creando due identita diverse.
+    s=str(s).translate(str.maketrans({'’':"'",'‘':"'",'`':"'",'´':"'",'‐':'-','‑':'-','–':'-','—':'-'}))
+    s=unicodedata.normalize('NFKD',s).encode('ascii','ignore').decode().lower()
     return re.sub(r'[^a-z0-9]+',' ',s).strip()
 
 def role_parts(role): return role.upper().split('/') if role else []
@@ -594,7 +598,19 @@ def roster_match(raw, role, roster_players, learned_aliases=None, team=None):
     # al roster ATTUALE della squadra. Questo impedisce a una vecchia convalida
     # errata (es. Wendell Moore -> Charlie Moore) di contaminare giornate future.
     if alias:
-        if not roster_players or any(norm(alias)==norm(p.get('name','')) for p in roster_players):
+        # Un alias appreso puo' essere riutilizzato solo se e' ancora coerente con
+        # l'identita' testuale corrente. Questo blocca vecchie convalide avvelenate
+        # (es. CHERY -> DIARRA) pur conservando abbreviazioni legittime come
+        # MOORE JR -> Wendell Moore o cognome -> nome completo.
+        raw_tokens=norm(raw).split(); alias_tokens=norm(alias).split()
+        lexical_ok=False
+        if raw_tokens and alias_tokens:
+            overlap=set(raw_tokens) & set(alias_tokens)
+            lexical_ok=bool(overlap) or _similarity(raw,alias)>=.72
+            if len(raw_tokens)==1:
+                lexical_ok=raw_tokens[0] in alias_tokens or _similarity(raw,alias)>=.82
+        in_roster=(not roster_players or any(norm(alias)==norm(p.get('name','')) for p in roster_players))
+        if in_roster and lexical_ok:
             return alias,1.0,[alias]
     if not roster_players:return raw,0.0,[]
     wanted=set(role_parts(role))
