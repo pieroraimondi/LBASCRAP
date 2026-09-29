@@ -191,6 +191,8 @@ class Handler(BaseHTTPRequestHandler):
             competition = data.get('competition', '')
             day = str(data.get('day', ''))
             text = data.get('text', '')
+            aliases = data.get('aliases') or {}
+            if not isinstance(aliases, dict): aliases = {}
             if competition not in ('pcf_lba', 'pcf_lnp', 'fbl_lba'):
                 return self.json_response(400, {'error': 'Fantabasket non valido.'})
             source = 'a2' if competition == 'pcf_lnp' else 'lba'
@@ -198,7 +200,7 @@ class Handler(BaseHTTPRequestHandler):
             if day not in cal:
                 return self.json_response(400, {'error': 'Giornata non valida.'})
             games = (get_a2_day(day) if source == 'a2' else get_lba_day(day))['games']
-            result = calculate_page(text, competition, games)
+            result = calculate_page(text, competition, games, aliases)
             result['day'] = int(day)
             result['competition'] = competition
             return self.json_response(200, result)

@@ -34,3 +34,6 @@ Test di regressione G1 usati per il motore:
 
 ### Motore PCF — correzione calcolo
 Il calcolo PCF replica ora letteralmente il foglio `calcolatore`: primi 5 titolari per slot PM/G/AP/AG/C, successivi 5 panchinari negli stessi slot; 11° e 12° usano i minuti residui in base al ruolo dichiarato. Per i doppi ruoli i minuti disponibili sono la somma dei residui dei due slot compatibili; dopo l'11° i suoi minuti reali vengono sottratti da ciascuno slot compatibile come nel foglio Excel. Non viene effettuata alcuna ottimizzazione automatica del ruolo.
+
+## Dizionario nomi Fantabasket
+Il modulo Fantabasket mantiene, separatamente per FBL LBA, PCF LBA e PCF LNP, un dizionario locale delle abbreviazioni riconosciute con certezza. Le associazioni apprese sono salvate nel browser e riutilizzate nelle giornate successive; il pulsante "Azzera dizionario nomi" le elimina. I match dubbi non vengono accettati automaticamente e sono segnalati come nomi non riconosciuti.

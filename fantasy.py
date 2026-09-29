@@ -12,24 +12,43 @@ def role_parts(role): return role.upper().split('/') if role else []
 
 def trunc(x): return math.floor(x)  # arrotondamento sempre per difetto, anche per valori negativi
 
-def player_index(games):
+def player_index(games, learned_aliases=None):
     out={}
     for g in games:
         for p in g.get('players',[]):
             out[norm(p.get('Giocatore',''))]=(p.get('Giocatore',''), int(p.get('Minuti') or 0), int(p.get('Valutazione') or 0))
+    # Il dizionario appreso dal browser punta sempre a un nome realmente presente
+    # nei tabellini correnti: se il giocatore non esiste piu', l'alias non viene usato.
+    for raw,canonical in (learned_aliases or {}).items():
+        ck=norm(canonical)
+        if ck in out:
+            out[norm(raw)]=out[ck]
     return out
 
 def best_match(name, idx):
     n=norm(name)
     alias=PLAYER_ALIASES.get(n) if 'PLAYER_ALIASES' in globals() else None
-    if alias and norm(alias) in idx: return idx[norm(alias)]
+    # Un alias puo' essere una forma canonica piu' corta del nome ufficiale
+    # del tabellino (es. David Cournooh -> David Reginald Cournooh). In tal
+    # caso usa l'alias anche per il fuzzy matching, non solo per l'exact match.
+    if alias:
+        an=norm(alias)
+        if an in idx: return idx[an]
+        n=an
     if n in idx:return idx[n]
-    nt=set(n.split()); best=None; score=0
+    nt=set(n.split()); ranked=[]
     for k,v in idx.items():
         kt=set(k.split()); common=len(nt & kt)
         s=common/max(1,len(nt|kt))
-        if s>score: score,best=s,v
-    return best if score>=.48 else (name,0,0)
+        # bonus prudente per cognome esatto: utile per i post che omettono il nome.
+        if nt and kt and list(nt)[-1] in kt: s += .08
+        ranked.append((s,v))
+    ranked.sort(key=lambda x:x[0], reverse=True)
+    if not ranked: return (name,0,0)
+    best_score,best=ranked[0]
+    second=ranked[1][0] if len(ranked)>1 else 0
+    # Mai indovinare un nome dubbio: richiede un match forte e distaccato.
+    return best if best_score>=.60 and best_score-second>=.12 else (name,0,0)
 
 def parse_line(line):
     line=re.sub(r'^\s*(?:\d{1,2}[.)]?\s*)','',line.strip())
@@ -37,6 +56,11 @@ def parse_line(line):
     if not m:return None
     role=m.group(0).upper()
     name=(line[:m.start()]+' '+line[m.end():]).strip(' -–:')
+    # Nei post PCF il ruolo viene spesso scritto due volte (es.
+    # "PM Cinciarini PM" oppure "G Green G"). Dopo aver individuato
+    # il ruolo, elimina gli eventuali altri token-ruolo: altrimenti il nome
+    # diventa "Cinciarini PM" e il matching col tabellino fallisce.
+    name=ROLE_RE.sub(' ',name)
     name=re.sub(r'\b(?:ITA|STR)\b.*$','',name,flags=re.I).strip()
     name=re.sub(r'\s+',' ',name)
     if len(name)<2:return None
@@ -450,11 +474,17 @@ Vincenzo Guaiana|G/AP
 '''
 ROLE_HINTS={norm(n):r for n,r in (line.split('|',1) for line in _HINTS.strip().splitlines())}
 
-def infer_line(line):
+def infer_line(line, learned_aliases=None):
     parsed=parse_line(line)
     if parsed:return parsed
     clean=re.sub(r'^\s*(?:\d{1,2}[.)]?\s*)','',line.strip())
     n=norm(clean)
+    # Anche le formazioni senza ruoli espliciti possono contenere abbreviazioni
+    # o refusi (Coornoh, J Johnson...). Se esiste un alias canonico, usalo per
+    # ricavare il ruolo dal roster-hint senza perdere la posizione nel quintetto.
+    alias=(learned_aliases or {}).get(clean) or (learned_aliases or {}).get(n) or (PLAYER_ALIASES.get(n) if 'PLAYER_ALIASES' in globals() else None)
+    if alias and norm(alias) in ROLE_HINTS:
+        return {'name':clean,'role':ROLE_HINTS[norm(alias)]}
     best=None
     for key,role in ROLE_HINTS.items():
         if key and (key in n or n in key) and len(n)>=4:
@@ -465,10 +495,10 @@ def infer_line(line):
         return {'name':name,'role':best[1]}
     return None
 
-def parse_formation(text):
+def parse_formation(text, learned_aliases=None):
     players=[]
     for raw in text.splitlines():
-        x=infer_line(raw)
+        x=infer_line(raw, learned_aliases)
         if x: players.append(x)
     return players[:15]
 
@@ -499,7 +529,13 @@ PLAYER_ALIASES={
     'Markel B':'Markel Brown','Wheatle':'Carl Wheatle','Emejuru':'Giovanni Emejuru',
     'Ramsey':"Jahmi'us Ramsey",'Christon':'Semaj Christon','Flagg':'Savion Flagg','Flowers':'Trentyn Flowers','Boakye':'Enoch Boakye',
     'Olivari':'Quincy Olivari','Calzavara':'Andrea Calzavara','Battle':'Raequan Battle','Alviti':'Davide Alviti','Camara':'Gora Camara',
-    'Librizzi':'Matteo Librizzi','Klintman':'Bo Klintman','Tarczewski':'Kaleb Tarczewski'}.items()
+    'Librizzi':'Matteo Librizzi','Klintman':'Bo Klintman','Tarczewski':'Kaleb Tarczewski',
+    # abbreviazioni/refusi ricorrenti PCF LNP
+    'Coornoh':'David Cournooh','Cournooh':'David Cournooh','J Johnson':'Jaron Johnson',
+    'A Ferrari':'Alessandro Ferrari','Gentile Ale':'Alessandro Gentile',
+    "Mimmo D'Argenzio":"Domenico D'Argenzio",'D Argenzio':"Domenico D'Argenzio",
+    'Santos Silva':'Marcus Santos Silva','Riisma':'Joonas Riismaa',
+    'Joonas Riisma':'Joonas Riismaa'}.items()
 }
 
 TEAM_OWNERS={
@@ -533,7 +569,7 @@ def detect_team_line(line, competition):
             return canonical_team(team,competition)
     return None
 
-def parse_page(text, competition):
+def parse_page(text, competition, learned_aliases=None):
     lines=text.replace('\r','').split('\n')
     starts=[]
     for i,line in enumerate(lines):
@@ -543,7 +579,7 @@ def parse_page(text, competition):
     for pos,(i,t) in enumerate(starts):
         end=starts[pos+1][0] if pos+1<len(starts) else len(lines)
         block='\n'.join(lines[i+1:end])
-        p=parse_formation(block)
+        p=parse_formation(block, learned_aliases)
         if len(p)>=5 and (t not in forms or len(p)>len(forms[t])): forms[t]=p
     # accoppiamenti: cerca righe con due nomi squadra e trattino lungo/corto
     matchups=[]
@@ -567,9 +603,9 @@ def parse_page(text, competition):
             if pair not in matchups: matchups.append(pair)
     return forms,matchups
 
-def calculate_page(text, competition, games):
-    forms,matchups=parse_page(text,competition)
-    stats=player_index(games)
+def calculate_page(text, competition, games, learned_aliases=None):
+    forms,matchups=parse_page(text,competition,learned_aliases)
+    stats=player_index(games, learned_aliases)
     teams={}
     for team,players in forms.items():
         if competition=='fbl_lba': score,details=score_fbl(players,stats,team)
@@ -580,4 +616,16 @@ def calculate_page(text, competition, games):
     for home,away in matchups:
         if home in teams and away in teams:
             results.append({'home':home,'away':away,'home_score':teams[home]['score']+bonus,'away_score':teams[away]['score'],'home_bonus':bonus})
-    return {'teams':teams,'matchups':results,'detected':list(forms)}
+    # Il browser memorizza solo associazioni che hanno effettivamente risolto un
+    # nome del forum verso un nome ufficiale del tabellino. Gli irrisolti vengono
+    # mostrati esplicitamente: non devono mai diventare zeri silenziosi.
+    suggestions={}; unresolved=[]
+    for team,info in teams.items():
+        for src,det in zip(info['players'], info['details']):
+            raw=src.get('name',''); real=det.get('name','')
+            if real and norm(real)!=norm(raw) and norm(real) in {norm(v[0]) for v in stats.values()}:
+                suggestions[raw]=real
+            elif real==raw and norm(raw) not in stats and norm(raw) not in PLAYER_ALIASES:
+                unresolved.append({'team':team,'name':raw,'role':src.get('role','')})
+    return {'teams':teams,'matchups':results,'detected':list(forms),
+            'alias_suggestions':suggestions,'unresolved':unresolved}
