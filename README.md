@@ -37,3 +37,8 @@ Il calcolo PCF replica ora letteralmente il foglio `calcolatore`: primi 5 titola
 
 ## Dizionario nomi Fantabasket
 Il modulo Fantabasket mantiene, separatamente per FBL LBA, PCF LBA e PCF LNP, un dizionario locale delle abbreviazioni riconosciute con certezza. Le associazioni apprese sono salvate nel browser e riutilizzate nelle giornate successive; il pulsante "Azzera dizionario nomi" le elimina. I match dubbi non vengono accettati automaticamente e sono segnalati come nomi non riconosciuti.
+
+## Fantabasket: roster persistenti e dizionario dinamico
+Per FBL LBA, PCF LBA e PCF LNP è disponibile una sezione Roster. Il copia-incolla del roster viene memorizzato nel browser separatamente per competizione e resta disponibile dopo i redeploy finché non viene sostituito o azzerato. Il parser usa prima il roster della squadra, poi ruolo/slot, alias appresi e infine il tabellino ufficiale. Le associazioni confermate vengono memorizzate nel dizionario della competizione.
+
+Se un nome non è risolto con sufficiente certezza, il calcolo viene bloccato e vengono mostrati i candidati del roster: nessuna riga viene ignorata intenzionalmente per produrre un punteggio parziale. Confermando un candidato, l'alias viene salvato e il calcolo viene rieseguito.

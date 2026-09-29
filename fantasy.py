@@ -1,5 +1,6 @@
 """Parser/calcolatore leggero per i tre fantabasket collegati ai tabellini."""
 import re, unicodedata, math
+from difflib import SequenceMatcher
 
 ROLES=('PM','G','AP','AG','C')
 ROLE_RE=re.compile(r'(?<![A-Z])(?:PM/G|G/AP|AP/AG|AG/C|PM|AP|AG|G|A|C)(?![A-Z])',re.I)
@@ -495,11 +496,87 @@ def infer_line(line, learned_aliases=None):
         return {'name':name,'role':best[1]}
     return None
 
-def parse_formation(text, learned_aliases=None):
+def _similarity(a,b):
+    a,b=norm(a),norm(b)
+    if not a or not b:return 0.0
+    if a==b:return 1.0
+    at,bt=a.split(),b.split()
+    score=SequenceMatcher(None,a,b).ratio()
+    if at[-1]==bt[-1]: score=max(score,.88)
+    elif at[-1] in bt or bt[-1] in at: score=max(score,.72)
+    if set(at)&set(bt): score=max(score, len(set(at)&set(bt))/max(len(set(at)),len(set(bt))))
+    return score
+
+def parse_roster_page(text, competition):
+    """Legge un copia-incolla della pagina roster. Restituisce roster per squadra.
+    Accetta sia il formato PCF numerato sia il formato FBL ruolo+cognome+crediti.
+    """
+    lines=text.replace('\r','').split('\n'); starts=[]
+    for i,line in enumerate(lines):
+        t=detect_team_line(line.strip(' *\\'),competition)
+        if t: starts.append((i,t))
+    rosters={}
+    for pos,(i,team) in enumerate(starts):
+        end=starts[pos+1][0] if pos+1<len(starts) else len(lines)
+        players=[]
+        for raw in lines[i+1:end]:
+            line=raw.strip().strip('\\').strip()
+            if not line or line.startswith('---') or re.search(r'roster\s+\d+/',line,re.I): continue
+            # PCF: 026 Darius Thompson PM/G ITA MILANO 25
+            m=re.match(r'^\s*\d{1,3}\s+(.+?)\s+(PM/G|G/AP|AP/AG|AG/C|PM|AP|AG|G|C)\s+(?:ITA|STR)\b',line,re.I)
+            if m:
+                players.append({'name':m.group(1).strip(),'role':m.group(2).upper()}); continue
+            # FBL roster: G SMITH 1 / GA BARFORD 5 / AC THOR 43
+            m=re.match(r'^\s*(PM/G|G/AP|AP/AG|AG/C|GA|AC|PM|AP|AG|G|A|C)\s+(.+?)(?:\s+\d+(?:\s*\(.*?\))?)?\s*$',line,re.I)
+            if m and len(m.group(2))<55:
+                role=m.group(1).upper(); role={'GA':'G/AP','AC':'AG/C','A':'AP/AG' if competition!='fbl_lba' else 'A'}.get(role,role)
+                name=m.group(2).strip()
+                name=re.sub(r'\s+\d+(?:\s*\(.*?\))?$','',name).strip()
+                if len(name)>1: players.append({'name':name,'role':role})
+        # dedup
+        seen=set(); clean=[]
+        for x in players:
+            k=norm(x['name'])
+            if k and k not in seen: seen.add(k); clean.append(x)
+        if clean: rosters[canonical_team(team,competition)]=clean
+    return rosters
+
+def roster_match(raw, role, roster_players, learned_aliases=None):
+    """Match permissivo ma confinato al roster della squadra.
+    Ritorna (nome, confidence, candidati). Un candidato unico ragionevole viene accettato.
+    """
+    aliases=learned_aliases or {}
+    alias=aliases.get(raw) or aliases.get(norm(raw))
+    if alias: return alias,1.0,[alias]
+    if not roster_players:return raw,0.0,[]
+    wanted=set(role_parts(role))
+    ranked=[]
+    for p in roster_players:
+        prole=p.get('role',''); compat=not wanted or bool(wanted & set(role_parts(prole))) or role in ('A','G','C')
+        sc=_similarity(raw,p['name']) + (.07 if compat else -.10)
+        ranked.append((sc,p['name'],prole))
+    ranked.sort(reverse=True)
+    candidates=[x[1] for x in ranked[:3] if x[0]>=.30]
+    if not ranked:return raw,0.0,[]
+    best=ranked[0]; second=ranked[1][0] if len(ranked)>1 else 0
+    # dentro un roster di 15 giocatori possiamo essere molto piu permissivi
+    if best[0]>=.48 and (best[0]-second>=.04 or best[0]>=.78): return best[1],best[0],candidates
+    return raw,best[0],candidates
+
+def parse_formation(text, learned_aliases=None, roster_players=None):
     players=[]
+    noise=('messaggi','stato','gruppo','modificato da','multiquote','rispondi','citazione','avatar','punteggio','provenienza','roster ')
     for raw in text.splitlines():
         x=infer_line(raw, learned_aliases)
-        if x: players.append(x)
+        if x: players.append(x); continue
+        line=raw.strip()
+        if not roster_players or not line or len(line)>70 or any(z in norm(line) for z in noise): continue
+        clean=re.sub(r'^\s*(?:\d{1,2}[.)]?\s*)','',line).strip()
+        # Per righe senza ruolo, prova SOLO contro il roster della squadra.
+        cand,conf,_=roster_match(clean,'',roster_players,learned_aliases)
+        if conf>=.62:
+            rp=next((p for p in roster_players if norm(p['name'])==norm(cand)),None)
+            if rp: players.append({'name':clean,'role':rp.get('role','')})
     return players[:15]
 
 # Alias frequenti nei post FBL: servono a disambiguare cognomi/abbreviazioni.
@@ -569,7 +646,7 @@ def detect_team_line(line, competition):
             return canonical_team(team,competition)
     return None
 
-def parse_page(text, competition, learned_aliases=None):
+def parse_page(text, competition, learned_aliases=None, rosters=None):
     lines=text.replace('\r','').split('\n')
     starts=[]
     for i,line in enumerate(lines):
@@ -579,7 +656,7 @@ def parse_page(text, competition, learned_aliases=None):
     for pos,(i,t) in enumerate(starts):
         end=starts[pos+1][0] if pos+1<len(starts) else len(lines)
         block='\n'.join(lines[i+1:end])
-        p=parse_formation(block, learned_aliases)
+        p=parse_formation(block, learned_aliases, (rosters or {}).get(t,[]))
         if len(p)>=5 and (t not in forms or len(p)>len(forms[t])): forms[t]=p
     # accoppiamenti: cerca righe con due nomi squadra e trattino lungo/corto
     matchups=[]
@@ -603,14 +680,22 @@ def parse_page(text, competition, learned_aliases=None):
             if pair not in matchups: matchups.append(pair)
     return forms,matchups
 
-def calculate_page(text, competition, games, learned_aliases=None):
-    forms,matchups=parse_page(text,competition,learned_aliases)
+def calculate_page(text, competition, games, learned_aliases=None, roster_text=''):
+    rosters=parse_roster_page(roster_text or '',competition)
+    forms,matchups=parse_page(text,competition,learned_aliases,rosters)
     stats=player_index(games, learned_aliases)
-    teams={}
+    teams={}; resolution=[]
     for team,players in forms.items():
-        if competition=='fbl_lba': score,details=score_fbl(players,stats,team)
-        else: score,details=score_formation(players,stats)
-        teams[team]={'score':score,'players':players,'details':details}
+        resolved=[]
+        team_roster=rosters.get(team,[])
+        for p in players:
+            raw=p.get('name',''); canonical,conf,cands=roster_match(raw,p.get('role',''),team_roster,learned_aliases)
+            q={**p,'source_name':raw,'name':canonical}
+            resolved.append(q)
+            resolution.append({'team':team,'raw':raw,'canonical':canonical,'confidence':round(conf,3),'candidates':cands,'role':p.get('role','')})
+        if competition=='fbl_lba': score,details=score_fbl(resolved,stats,team)
+        else: score,details=score_formation(resolved,stats)
+        teams[team]={'score':score,'players':resolved,'details':details}
     results=[]
     bonus=5 if competition=='fbl_lba' else 3
     for home,away in matchups:
@@ -620,12 +705,15 @@ def calculate_page(text, competition, games, learned_aliases=None):
     # nome del forum verso un nome ufficiale del tabellino. Gli irrisolti vengono
     # mostrati esplicitamente: non devono mai diventare zeri silenziosi.
     suggestions={}; unresolved=[]
-    for team,info in teams.items():
-        for src,det in zip(info['players'], info['details']):
-            raw=src.get('name',''); real=det.get('name','')
-            if real and norm(real)!=norm(raw) and norm(real) in {norm(v[0]) for v in stats.values()}:
-                suggestions[raw]=real
-            elif real==raw and norm(raw) not in stats and norm(raw) not in PLAYER_ALIASES:
-                unresolved.append({'team':team,'name':raw,'role':src.get('role','')})
+    stat_names={norm(v[0]):v[0] for v in stats.values()}
+    for r in resolution:
+        raw=r['raw']; canonical=r['canonical']; team=r['team']
+        # canonical roster name -> nome ufficiale tabellino
+        official=best_match(canonical,stats)[0]
+        ok=norm(official) in stat_names
+        if ok and norm(raw)!=norm(official): suggestions[raw]=official
+        if not ok:
+            unresolved.append({'team':team,'name':raw,'role':r['role'],'candidates':r['candidates']})
+    valid=not unresolved and all(len(v.get('players',[]))>=10 for v in teams.values())
     return {'teams':teams,'matchups':results,'detected':list(forms),
-            'alias_suggestions':suggestions,'unresolved':unresolved}
+            'alias_suggestions':suggestions,'unresolved':unresolved,'rosters':{k:len(v) for k,v in rosters.items()},'valid':valid}
