@@ -541,12 +541,13 @@ def parse_roster_page(text, competition):
         if clean: rosters[canonical_team(team,competition)]=clean
     return rosters
 
-def roster_match(raw, role, roster_players, learned_aliases=None):
+def roster_match(raw, role, roster_players, learned_aliases=None, team=None):
     """Match permissivo ma confinato al roster della squadra.
     Ritorna (nome, confidence, candidati). Un candidato unico ragionevole viene accettato.
     """
     aliases=learned_aliases or {}
-    alias=aliases.get(raw) or aliases.get(norm(raw))
+    scoped = f"{norm(team)}|||{norm(raw)}" if team else None
+    alias=(aliases.get(scoped) if scoped else None) or aliases.get(raw) or aliases.get(norm(raw))
     if alias: return alias,1.0,[alias]
     if not roster_players:return raw,0.0,[]
     wanted=set(role_parts(role))
@@ -689,7 +690,7 @@ def calculate_page(text, competition, games, learned_aliases=None, roster_text='
         resolved=[]
         team_roster=rosters.get(team,[])
         for p in players:
-            raw=p.get('name',''); canonical,conf,cands=roster_match(raw,p.get('role',''),team_roster,learned_aliases)
+            raw=p.get('name',''); canonical,conf,cands=roster_match(raw,p.get('role',''),team_roster,learned_aliases,team)
             q={**p,'source_name':raw,'name':canonical}
             resolved.append(q)
             resolution.append({'team':team,'raw':raw,'canonical':canonical,'confidence':round(conf,3),'candidates':cands,'role':p.get('role','')})
@@ -716,4 +717,4 @@ def calculate_page(text, competition, games, learned_aliases=None, roster_text='
             unresolved.append({'team':team,'name':raw,'role':r['role'],'candidates':r['candidates']})
     valid=not unresolved and all(len(v.get('players',[]))>=10 for v in teams.values())
     return {'teams':teams,'matchups':results,'detected':list(forms),
-            'alias_suggestions':suggestions,'unresolved':unresolved,'rosters':{k:len(v) for k,v in rosters.items()},'valid':valid}
+            'alias_suggestions':suggestions,'unresolved':unresolved,'rosters':{k:len(v) for k,v in rosters.items()},'roster_players':rosters,'valid':valid}
