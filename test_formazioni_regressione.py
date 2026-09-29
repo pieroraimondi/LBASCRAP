@@ -100,3 +100,24 @@ d=calc['teams']['Maccabi Ruero']['details']
 assert calc['teams']['Maccabi Ruero']['score']==100
 assert [x['name'] for x in d]==['Colbey Ross','Federico Zampini','Valentin Chery','Arturs Strautins','Alessandro Lever','Aliou Diarra','Marko Simonovic','Moses Wright','Ousmane Diop']
 print('OK: end-to-end poisoned dictionary FBL')
+
+# FBL hard invariant: even a completely poisoned learned dictionary must NEVER rewrite
+# the posted formation. Identity comes from current post + current team roster only.
+from test_fbl_benchmark import RAW as FBL_RAW, S as FBL_STATS, EXPECT as FBL_EXPECT
+poison={
+    'glynn watson':'Jack White','hunter hale':'Jack White','denzel valentine':'Jack White',
+    'mezie offurum':'DeWayne Russell','dominik olejniczak':'Jack White',
+    'bruno mascolo':'Jack White','amedeo della valle':'Jack White','giovanni veronesi':'Jack White',
+    'jack white':'DeWayne Russell','paul eboua':'Jack White','dewayne russell':'Jack White',
+    'moore jr':'Aliou Diarra','chery':'Aliou Diarra','diarra':'Alessandro Lever','ross':'Ousmane Diop'
+}
+GAMES_POISON=[{'players':[{'Giocatore':v[0],'Minuti':v[1],'Valutazione':v[2]} for v in FBL_STATS.values()]}]
+calc_poison=calculate_page(FBL_RAW,'fbl_lba',GAMES_POISON,poison)
+for team,base in FBL_EXPECT.items():
+    assert calc_poison['teams'][team]['score']==base,(team,calc_poison['teams'][team]['score'],base)
+# source/canonical order must remain the posted Drink Team 13, not repeated aliases
+posted=[p['canonical'] for p in calc_poison['parsed_formations']['Drink Team']]
+assert posted[:10]==['Glynn Watson','Hunter Hale','Denzel Valentine','Mezie Offurum','Dominik Olejniczak','Bruno Mascolo','Amedeo Della Valle','Giovanni Veronesi','Jack White','Paul Eboua'], posted
+macc=[p['canonical'] for p in calc_poison['parsed_formations']['Maccabi Ruero']]
+assert macc[:5]==['Wendell Moore','Valentin Chery','Alec Peters','Aliou Diarra','Moses Wright'],macc
+print('OK: FBL learned aliases cannot rewrite posted formations')

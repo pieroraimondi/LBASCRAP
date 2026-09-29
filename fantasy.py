@@ -201,41 +201,79 @@ def score_formation(players, stats):
     return total,details
 
 def score_fbl(players, stats, team=None):
-    """Motore FBL fedele al benchmark ufficiale G1.
+    """Motore FBL.
 
-    La formazione POSTATA e' immutabile: posizioni 0-4 titolari, 5-9 riserve
-    abbinate per slot, 10-12 tribuna. Solo un DNP (0 minuti) attiva una
-    sostituzione: se manca il titolare sale LA SUA riserva; il posto liberato
-    in riserva viene coperto dal primo tribunaro compatibile. Se manca soltanto
-    la riserva, entra direttamente il primo tribunaro compatibile.
-    Il roster/alias serve esclusivamente a riconoscere il nome, mai a cambiare
-    ordine o impiego. Ogni coppia titolare-riserva copre 40 minuti.
-    Il riproporzionamento FBL usa FLOOR, anche sui negativi (come nel benchmark ufficiale).
+    Posizioni 1-5 titolari, 6-10 riserve abbinate, 11-13 tribuna in ordine.
+    La tribuna puo' essere usata SOLO se nella formazione di giornata il singolo
+    tribunaro ha un ruolo FBL esplicito e singolo (G, A oppure C): i doppi ruoli
+    del roster non valgono in tribuna e non vengono mai dedotti automaticamente.
+
+    Un tribunaro compatibile entra soltanto per un DNP dei primi dieci e soltanto
+    se la sostituzione mantiene almeno 3 ITA nei dieci giocatori effettivi. Se lo
+    status ITA/STR necessario a verificare il vincolo non e' disponibile nel roster,
+    la sostituzione di tribuna viene prudentemente rifiutata: il vincolo non puo'
+    essere dato per rispettato per supposizione.
     """
     enriched=[]
     for i,p in enumerate(players[:13]):
-        lookup=p['name']
-        real,mins,val=best_match(lookup,stats)
+        real,mins,val=best_match(p['name'],stats)
         enriched.append({**p,'real_name':real,'minutes':max(0,mins),'valuation':val,'order':i})
+
     total=0; details=[]; used_tribuna=set()
-    def take_tribuna(target_role):
-        wanted=set(role_parts(target_role))
+    # Gli indici attivi iniziali sono i 10 schierati. Una sostituzione di tribuna
+    # rimuove il DNP e aggiunge il tribunaro; la riserva promossa resta gia' nei 10.
+    active=set(range(min(10,len(enriched))))
+
+    def status_known(indices):
+        return all(enriched[k].get('status') in ('ITA','STR') for k in indices)
+
+    def italian_count(indices):
+        return sum(enriched[k].get('status')=='ITA' for k in indices)
+
+    def take_tribuna(target_fbl_role, dnp_index):
+        # target_fbl_role e' lo slot FBL da coprire: G/A/C. L'ordine 11->12->13
+        # e' tassativo; un candidato non utilizzabile viene saltato e si prova il successivo.
+        target=(target_fbl_role or '').upper()
         for k in range(10,len(enriched)):
             if k in used_tribuna: continue
-            if wanted & set(role_parts(enriched[k]['role'])):
-                used_tribuna.add(k); return enriched[k]
+            p=enriched[k]
+            # In tribuna conta SOLO il ruolo singolo scritto nella formazione.
+            if not p.get('explicit_single_fbl_role') or p.get('role') not in ('G','A','C'):
+                continue
+            if p.get('role') != target:
+                continue
+            trial=(active-{dnp_index})|{k}
+            # Il vincolo e' verificato positivamente: servono almeno 3 status ITA noti.
+            # Gli status mancanti non vengono mai contati come italiani per supposizione.
+            if italian_count(trial) < 3:
+                continue
+            used_tribuna.add(k)
+            active.discard(dnp_index); active.add(k)
+            return p
         return None
+
+    # Gli slot FBL sono determinati dalla formazione postata, non dal ruolo naturale.
+    # Il ruolo del titolare deve quindi essere G/A/C; per eventuali input legacy AP/AG/C
+    # normalizziamo solo gli slot 1-10, mai la tribuna.
+    def fbl_slot_role(p):
+        r=(p.get('role') or '').upper()
+        if r=='G' or r=='PM' or r=='PM/G': return 'G'
+        if r in ('A','AP','AG','G/AP','AP/AG'): return 'A'
+        if r in ('C','AG/C'): return 'C'
+        return r
+
     for i in range(min(5,len(enriched))):
         starter=enriched[i]
         bench=enriched[i+5] if i+5<len(enriched) else None
+        slot_role=fbl_slot_role(starter)
         if starter['minutes']==0 and bench is not None:
             first=bench
-            second=take_tribuna(starter['role'])
+            second=take_tribuna(slot_role, i)
             kinds=('riserva promossa','tribuna')
         else:
             first=starter
             if bench is not None and bench['minutes']==0:
-                second=take_tribuna(bench['role'])
+                second=take_tribuna(slot_role, i+5)
                 kinds=('titolare','tribuna')
             else:
                 second=bench
@@ -248,7 +286,9 @@ def score_fbl(players, stats, team=None):
             elif mins<=rem: pts=p['valuation']
             else: pts=trunc(p['valuation']*rem/mins)
             total+=pts; rem-=take
-            details.append({'slot':i+1,'slot_role':starter['role'],'kind':kind,'name':p['real_name'],'role':p['role'],'minutes':mins,'valuation':p['valuation'],'used_minutes':take,'fantasy':pts})
+            details.append({'slot':i+1,'slot_role':slot_role,'kind':kind,'name':p['real_name'],'role':p['role'],
+                            'status':p.get('status',''),'minutes':mins,'valuation':p['valuation'],
+                            'used_minutes':take,'fantasy':pts})
     return total,details
 
 # Ruoli di appoggio per riconoscere i copia/incolla del forum anche quando la formazione
@@ -569,16 +609,21 @@ def parse_roster_page(text, competition):
             line=raw.strip().strip('\\').strip()
             if not line or line.startswith('---') or re.search(r'roster\s+\d+/',line,re.I): continue
             # PCF: 026 Darius Thompson PM/G ITA MILANO 25
-            m=re.match(r'^\s*\d{1,3}\s+(.+?)\s+(PM/G|G/AP|AP/AG|AG/C|PM|AP|AG|G|C)\s+(?:ITA|STR)\b',line,re.I)
+            m=re.match(r'^\s*\d{1,3}\s+(.+?)\s+(PM/G|G/AP|AP/AG|AG/C|PM|AP|AG|G|C)\s+(ITA|STR)\b',line,re.I)
             if m:
-                players.append({'name':m.group(1).strip(),'role':m.group(2).upper()}); continue
+                players.append({'name':m.group(1).strip(),'role':m.group(2).upper(),'status':m.group(3).upper()}); continue
             # FBL roster: G SMITH 1 / GA BARFORD 5 / AC THOR 43
             m=re.match(r'^\s*(PM/G|G/AP|AP/AG|AG/C|GA|AC|PM|AP|AG|G|A|C)\s+(.+?)(?:\s+\d+(?:\s*\(.*?\))?)?\s*$',line,re.I)
             if m and len(m.group(2))<55:
                 role=m.group(1).upper(); role={'GA':'G/AP','AC':'AG/C','A':'AP/AG' if competition!='fbl_lba' else 'A'}.get(role,role)
                 name=m.group(2).strip()
                 name=re.sub(r'\s+\d+(?:\s*\(.*?\))?$','',name).strip()
-                if len(name)>1: players.append({'name':name,'role':role})
+                status=''
+                sm=re.search(r'\b(ITA|STR)\b',name,re.I)
+                if sm:
+                    status=sm.group(1).upper(); name=(name[:sm.start()]+' '+name[sm.end():]).strip()
+                    name=re.sub(r'\s+\d+(?:\s*\(.*?\))?$','',name).strip()
+                if len(name)>1: players.append({'name':name,'role':role,'status':status})
         # dedup
         seen=set(); clean=[]
         for x in players:
@@ -678,6 +723,7 @@ def parse_formation(text, learned_aliases=None, roster_players=None, competition
                 if conf < .40:
                     if started: continue
                     else: continue
+            x['explicit_single_fbl_role']=bool(competition=='fbl_lba' and x.get('role') in ('G','A','C') and ROLE_RE.search(line.upper()))
             players.append(x); started=True
         else:
             # Formati PCF senza ruolo (es. "Watson Jr", "Hale", ...): accettiamo
@@ -688,7 +734,7 @@ def parse_formation(text, learned_aliases=None, roster_players=None, competition
             if conf>=.48:
                 rp=next((p for p in roster_players if norm(p['name'])==norm(canonical)),None)
                 if rp:
-                    players.append({'name':clean,'role':rp.get('role','')}); started=True
+                    players.append({'name':clean,'role':rp.get('role',''),'explicit_single_fbl_role':False}); started=True
         if len(players)>=max_players:
             break
     return players
@@ -728,6 +774,44 @@ PLAYER_ALIASES={
     'Santos Silva':'Marcus Santos Silva','Riisma':'Joonas Riismaa',
     'Joonas Riisma':'Joonas Riismaa'}.items()
 }
+
+# Status FBL incorporati per il roster corrente. Sono metadati di roster, non
+# eccezioni di calcolo: un roster incollato con ITA/STR li sovrascrive. Servono
+# anche quando l'utente usa il roster fallback incorporato.
+FBL_ITA_NAMES={norm(x) for x in '''
+Alessandro Cappelletti
+Lorenzo Bucarelli
+Andrea Pecchia
+Francesco Ferrari
+Tommaso Baldasso
+Riccardo Moraschini
+Riccardo Visconti
+Guglielmo Caruso
+Amedeo Della Valle
+Bruno Mascolo
+Federico Miaschi
+Giovanni Veronesi
+Paul Eboua
+Federico Zampini
+Arturs Strautins
+Alessandro Lever
+Andrea Calzavara
+Matteo Librizzi
+Alessandro Bertini
+Davide Alviti
+Gora Camara
+Nico Mannion
+Amedeo Tessitori
+Leonardo Tote
+Riccardo Rossato
+Giordano Bortolani
+Davide Moretti
+Stefan Nikolic
+Marco Spissu
+Amar Alibegovic
+Karim Jallow
+Giovanni Emejuru
+'''.strip().splitlines()}
 
 TEAM_OWNERS={
 'pcf_lba':{
@@ -836,15 +920,25 @@ def calculate_page(text, competition, games, learned_aliases=None, roster_text='
     rosters={k:[dict(x) for x in v] for k,v in DEFAULT_ROSTERS.get(competition,{}).items()}
     uploaded=parse_roster_page(roster_text or '',competition)
     rosters.update(uploaded)
-    forms,matchups=parse_page(text,competition,learned_aliases,rosters)
-    stats=player_index(games, learned_aliases)
+    # FBL: l'identita della formazione viene ricostruita SEMPRE dal testo corrente + roster corrente.
+    # Il dizionario appreso non puo mai riscrivere una formazione (evita alias storici avvelenati).
+    formation_aliases = {} if competition=='fbl_lba' else learned_aliases
+    forms,matchups=parse_page(text,competition,formation_aliases,rosters)
+    # Anche l'indice tabellini FBL non viene riscritto da alias storici: il matching
+    # parte dai nomi canonici risolti sul roster corrente.
+    stats_aliases = {} if competition=='fbl_lba' else learned_aliases
+    stats=player_index(games, stats_aliases)
     teams={}; resolution=[]
     for team,players in forms.items():
         resolved=[]
         team_roster=rosters.get(team,[])
         for p in players:
-            raw=p.get('name',''); canonical,conf,cands=roster_match(raw,p.get('role',''),team_roster,learned_aliases,team)
+            raw=p.get('name',''); canonical,conf,cands=roster_match(raw,p.get('role',''),team_roster,formation_aliases,team)
             q={**p,'source_name':raw,'name':canonical}
+            rp=next((x for x in team_roster if norm(x.get('name',''))==norm(canonical)),None)
+            q['status']=(rp or {}).get('status','').upper()
+            if competition=='fbl_lba' and not q['status']:
+                q['status']='ITA' if norm(canonical) in FBL_ITA_NAMES else 'STR'
             resolved.append(q)
             resolution.append({'team':team,'raw':raw,'canonical':canonical,'confidence':round(conf,3),'candidates':cands,'role':p.get('role','')})
         if competition=='fbl_lba': score,details=score_fbl(resolved,stats,team)

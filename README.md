@@ -25,7 +25,7 @@ Il copia/incolla delle formazioni è memorizzato separatamente per competizione 
 La pagina include tre calcolatori: **PCF LBA**, **PCF LNP** e **FBL LBA**. Il copia/incolla grezzo del thread viene conservato nel browser separatamente per competizione e giornata finché viene sovrascritto o azzerato.
 
 - PCF LBA/LNP: +3 alla squadra di casa; motore 40 minuti per slot con 11°/12° sui residui compatibili.
-- FBL LBA: +5 alla squadra di casa; 5 titolari + 5 riserve + fino a 3 tribuna. La tribuna interviene, in ordine e per ruolo compatibile, quando uno dei primi 10 ha 0 minuti.
+- FBL LBA: +5 alla squadra di casa; 5 titolari + 5 riserve + fino a 3 tribuna. I tribunari sono valutati tassativamente in ordine 11→12→13 e sono utilizzabili solo con ruolo singolo G/A/C esplicitato nella formazione (nessun doppio ruolo in tribuna). Un tribunaro entra per un DNP solo se la sostituzione mantiene almeno 3 ITA nei 10 effettivi.
 
 Test di regressione G1 usati per il motore:
 - PCF LBA: Basket Padova – Olimpija Ruero **75–57**.
