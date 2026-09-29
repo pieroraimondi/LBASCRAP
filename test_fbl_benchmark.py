@@ -1,4 +1,4 @@
-from fantasy import parse_page, score_fbl, norm, DEFAULT_ROSTERS
+from fantasy import parse_page, score_fbl, norm, DEFAULT_ROSTERS, FBL_ITA_NAMES
 
 def stats(rows):
     return {norm(n):(n,m,v) for n,v,m in rows}
@@ -26,7 +26,7 @@ FORMS={
 }
 EXPECT={'Drink Team':56,'Rasta Panthers':122,'CSKA Basket':142,'Monza a Spicchi':139,'PBK Dinamo Ronco':93,'Maccabi Ruero':100,'Casorzo Lakers':82,'Furleee':79}
 for team,rows in FORMS.items():
-    ps=[{'role':r,'name':n} for r,n in rows]
+    ps=[{'role':r,'name':n,'explicit_single_fbl_role': True, 'status': ('ITA' if norm(n) in FBL_ITA_NAMES else 'STR')} for r,n in rows]
     got,det=score_fbl(ps,S,team)
     assert got==EXPECT[team], (team,got,EXPECT[team],[(x['name'],x['fantasy']) for x in det])
 print('FBL benchmark 8/8 OK')

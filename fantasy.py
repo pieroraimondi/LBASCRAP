@@ -201,79 +201,82 @@ def score_formation(players, stats):
     return total,details
 
 def score_fbl(players, stats, team=None):
-    """Motore FBL.
+    """Motore FBL: 1-5 titolari, 6-10 riserve abbinate, 11-13 tribuna.
 
-    Posizioni 1-5 titolari, 6-10 riserve abbinate, 11-13 tribuna in ordine.
-    La tribuna puo' essere usata SOLO se nella formazione di giornata il singolo
-    tribunaro ha un ruolo FBL esplicito e singolo (G, A oppure C): i doppi ruoli
-    del roster non valgono in tribuna e non vengono mai dedotti automaticamente.
-
-    Un tribunaro compatibile entra soltanto per un DNP dei primi dieci e soltanto
-    se la sostituzione mantiene almeno 3 ITA nei dieci giocatori effettivi. Se lo
-    status ITA/STR necessario a verificare il vincolo non e' disponibile nel roster,
-    la sostituzione di tribuna viene prudentemente rifiutata: il vincolo non puo'
-    essere dato per rispettato per supposizione.
+    La formazione postata e' autoritativa. I tribunari sono utilizzabili solo con
+    ruolo FBL SINGOLO esplicito G/A/C; l'ordine 11->12->13 e' prioritario. La
+    tribuna sostituisce esclusivamente DNP nei primi 10. Il vincolo di almeno 3
+    ITA si verifica sulla configurazione FINALE dei dieci: non dopo ogni singolo
+    ingresso, perche' due/tre tribunari ITA possono essere necessari insieme.
     """
     enriched=[]
     for i,p in enumerate(players[:13]):
         real,mins,val=best_match(p['name'],stats)
         enriched.append({**p,'real_name':real,'minutes':max(0,mins),'valuation':val,'order':i})
 
-    total=0; details=[]; used_tribuna=set()
-    # Gli indici attivi iniziali sono i 10 schierati. Una sostituzione di tribuna
-    # rimuove il DNP e aggiunge il tribunaro; la riserva promossa resta gia' nei 10.
-    active=set(range(min(10,len(enriched))))
-
-    def status_known(indices):
-        return all(enriched[k].get('status') in ('ITA','STR') for k in indices)
-
-    def italian_count(indices):
-        return sum(enriched[k].get('status')=='ITA' for k in indices)
-
-    def take_tribuna(target_fbl_role, dnp_index):
-        # target_fbl_role e' lo slot FBL da coprire: G/A/C. L'ordine 11->12->13
-        # e' tassativo; un candidato non utilizzabile viene saltato e si prova il successivo.
-        target=(target_fbl_role or '').upper()
-        for k in range(10,len(enriched)):
-            if k in used_tribuna: continue
-            p=enriched[k]
-            # In tribuna conta SOLO il ruolo singolo scritto nella formazione.
-            if not p.get('explicit_single_fbl_role') or p.get('role') not in ('G','A','C'):
-                continue
-            if p.get('role') != target:
-                continue
-            trial=(active-{dnp_index})|{k}
-            # Il vincolo e' verificato positivamente: servono almeno 3 status ITA noti.
-            # Gli status mancanti non vengono mai contati come italiani per supposizione.
-            if italian_count(trial) < 3:
-                continue
-            used_tribuna.add(k)
-            active.discard(dnp_index); active.add(k)
-            return p
-        return None
-
-    # Gli slot FBL sono determinati dalla formazione postata, non dal ruolo naturale.
-    # Il ruolo del titolare deve quindi essere G/A/C; per eventuali input legacy AP/AG/C
-    # normalizziamo solo gli slot 1-10, mai la tribuna.
     def fbl_slot_role(p):
         r=(p.get('role') or '').upper()
-        if r=='G' or r=='PM' or r=='PM/G': return 'G'
+        if r in ('G','PM','PM/G'): return 'G'
         if r in ('A','AP','AG','G/AP','AP/AG'): return 'A'
         if r in ('C','AG/C'): return 'C'
         return r
 
+    # Vacanze: ogni DNP nei primi 10 puo' essere rimpiazzato da UN tribunaro.
+    # Il ruolo da coprire e' quello dello slot 1-5 corrispondente.
+    vacancies=[]
+    for j in range(min(10,len(enriched))):
+        if enriched[j]['minutes']==0:
+            slot=j if j<5 else j-5
+            vacancies.append((j,slot,fbl_slot_role(enriched[slot])))
+
+    tribunal=[]
+    for k in range(10,len(enriched)):
+        p=enriched[k]
+        if p.get('explicit_single_fbl_role') and p.get('role') in ('G','A','C'):
+            tribunal.append(k)
+
+    base_active=set(range(min(10,len(enriched))))
+    # Status mancanti: non si presume mai ITA.
+    def ita_count(indices):
+        return sum(enriched[k].get('status')=='ITA' for k in indices)
+
+    # Cerca globalmente l'assegnazione valida. Priorita': piu' DNP coperti; poi
+    # ordine di tribuna 11->12->13. Questo evita il bug per cui il primo ITA era
+    # rifiutato perche', da solo, non portava ancora il totale a 3 italiani.
+    choices=[]
+    def rec(vpos, used, mapping):
+        if vpos==len(vacancies):
+            active=set(base_active)
+            for dnp,k in mapping.items():
+                active.discard(dnp); active.add(k)
+            if ita_count(active)>=3:
+                key=(-len(mapping), tuple(sorted(used)), tuple(sorted(mapping.items())))
+                choices.append((key,dict(mapping)))
+            return
+        dnp,slot,role=vacancies[vpos]
+        # prova prima i tribunari in ordine, poi l'eventuale mancata sostituzione
+        for k in tribunal:
+            if k not in used and enriched[k].get('role')==role:
+                mapping[dnp]=k; used.add(k); rec(vpos+1,used,mapping)
+                used.remove(k); mapping.pop(dnp,None)
+        rec(vpos+1,used,mapping)
+    rec(0,set(),{})
+    replacement=min(choices,key=lambda x:x[0])[1] if choices else {}
+
+    total=0; details=[]
     for i in range(min(5,len(enriched))):
         starter=enriched[i]
         bench=enriched[i+5] if i+5<len(enriched) else None
         slot_role=fbl_slot_role(starter)
         if starter['minutes']==0 and bench is not None:
             first=bench
-            second=take_tribuna(slot_role, i)
+            second=enriched[replacement[i]] if i in replacement else None
             kinds=('riserva promossa','tribuna')
         else:
             first=starter
+            bi=i+5
             if bench is not None and bench['minutes']==0:
-                second=take_tribuna(slot_role, i+5)
+                second=enriched[replacement[bi]] if bi in replacement else None
                 kinds=('titolare','tribuna')
             else:
                 second=bench
