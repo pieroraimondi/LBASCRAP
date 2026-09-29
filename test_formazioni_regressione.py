@@ -20,7 +20,7 @@ assert best_match('Valentin Chery',idx)[1:] == (19,14)
 print('OK: test regressione formazioni')
 
 # Identity regression: same surname must never override a stronger full-name match.
-from fantasy import best_match, norm, roster_match, score_fbl, player_index
+from fantasy import best_match, norm, roster_match, score_fbl, player_index, FBL_ITA_NAMES
 idx={norm('Charlie Moore'):('Charlie Moore',25,9), norm('Wendell Moore Jr'):('Wendell Moore Jr',0,0)}
 assert best_match('Wendell Moore',idx)[0]=='Wendell Moore Jr'
 
@@ -66,7 +66,7 @@ S2={norm(n):(n,m,v) for n,m,v in [
 ('Wendell Moore',0,0),('Valentin Chery',19,14),('Alec Peters',0,0),('Aliou Diarra',15,6),('Moses Wright',22,16),
 ('Colbey Ross',27,24),('Izaiah Brockington',0,0),('Arturs Strautins',26,7),('Marko Simonovic',25,21),('Ousmane Diop',13,3),
 ('Federico Zampini',36,19),('Alessandro Lever',23,5),('John Brown',22,15)]}
-ps=[{'role':r,'name':n} for r,n in [('G','Wendell Moore'),('A','Valentin Chery'),('A','Alec Peters'),('C','Aliou Diarra'),('C','Moses Wright'),('G','Colbey Ross'),('G','Izaiah Brockington'),('A','Arturs Strautins'),('A','Marko Simonovic'),('C','Ousmane Diop'),('G','Federico Zampini'),('A','Alessandro Lever'),('C','John Brown')]]
+ps=[{'role':r,'name':n,'explicit_single_fbl_role':(i>=10),'status':('ITA' if norm(n) in FBL_ITA_NAMES else 'STR')} for i,(r,n) in enumerate([('G','Wendell Moore'),('A','Valentin Chery'),('A','Alec Peters'),('C','Aliou Diarra'),('C','Moses Wright'),('G','Colbey Ross'),('G','Izaiah Brockington'),('A','Arturs Strautins'),('A','Marko Simonovic'),('C','Ousmane Diop'),('G','Federico Zampini'),('A','Alessandro Lever'),('C','John Brown')])]
 score,det=score_fbl(ps,S2,'Maccabi Ruero')
 assert score==100
 assert [(x['name'],x['fantasy']) for x in det] == [('Colbey Ross',24),('Federico Zampini',6),('Valentin Chery',14),('Arturs Strautins',7),('Alessandro Lever',3),('Aliou Diarra',6),('Marko Simonovic',21),('Moses Wright',16),('Ousmane Diop',3)]

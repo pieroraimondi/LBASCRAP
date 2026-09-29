@@ -201,33 +201,57 @@ def score_formation(players, stats):
     return total,details
 
 def score_fbl(players, stats, team=None):
-    """Motore FBL: 1-5 titolari, 6-10 riserve abbinate, 11-13 tribuna.
+    """Motore FBL.
 
-    La formazione postata e' autoritativa. I tribunari sono utilizzabili solo con
-    ruolo FBL SINGOLO esplicito G/A/C; l'ordine 11->12->13 e' prioritario. La
-    tribuna sostituisce esclusivamente DNP nei primi 10. Il vincolo di almeno 3
-    ITA si verifica sulla configurazione FINALE dei dieci: non dopo ogni singolo
-    ingresso, perche' due/tre tribunari ITA possono essere necessari insieme.
+    Struttura immutabile della formazione: 1-5 titolari, 6-10 panchinari
+    abbinati per posizione (1<->6 ... 5<->10), 11-13 tribuna.
+
+    La tribuna NON copre genericamente minuti residui (quella e' logica PCF):
+    sostituisce gli assenti nei moduli FBL. Il ruolo guida per la tribuna e'
+    SEMPRE il ruolo dello slot di panchina del modulo. Un tribunaro e'
+    utilizzabile solo se nella formazione di giornata ha un ruolo singolo
+    esplicito G/A/C. Priorita' deterministiche: moduli 1->5, e a parita'
+    tribunari 11->12->13. La configurazione finale deve avere almeno 3 ITA
+    nei dieci slot effettivi; tra le configurazioni regolamentari non si usa
+    mai la valutazione per scegliere chi entra.
     """
     enriched=[]
     for i,p in enumerate(players[:13]):
         real,mins,val=best_match(p['name'],stats)
         enriched.append({**p,'real_name':real,'minutes':max(0,mins),'valuation':val,'order':i})
 
-    def fbl_slot_role(p):
+    def fbl_role(p):
         r=(p.get('role') or '').upper()
         if r in ('G','PM','PM/G'): return 'G'
         if r in ('A','AP','AG','G/AP','AP/AG'): return 'A'
         if r in ('C','AG/C'): return 'C'
         return r
 
-    # Vacanze: ogni DNP nei primi 10 puo' essere rimpiazzato da UN tribunaro.
-    # Il ruolo da coprire e' quello dello slot 1-5 corrispondente.
+    # Ogni vacancy e' (modulo, destinazione, ruolo_guida). L'ordine della lista
+    # E' la priorita' regolamentare: modulo 1->5; nel caso di doppia assenza
+    # prima si riempie il quintetto, poi la panchina dello stesso modulo.
     vacancies=[]
-    for j in range(min(10,len(enriched))):
-        if enriched[j]['minutes']==0:
-            slot=j if j<5 else j-5
-            vacancies.append((j,slot,fbl_slot_role(enriched[slot])))
+    module_state=[]
+    for i in range(5):
+        starter=enriched[i] if i < len(enriched) else None
+        bench=enriched[i+5] if i+5 < len(enriched) else None
+        role=fbl_role(bench) if bench is not None else ''
+        s_abs=(starter is None or starter['minutes']==0)
+        b_abs=(bench is None or bench['minutes']==0)
+        if not s_abs and not b_abs:
+            state='normal'
+        elif not s_abs and b_abs:
+            state='bench_missing'; vacancies.append((i,'bench',role))
+        elif s_abs and not b_abs:
+            # Il panchinaro scala in quintetto; la tribuna riempie la panchina.
+            state='bench_promoted'; vacancies.append((i,'bench',role))
+        else:
+            # Doppia assenza: primo compatibile direttamente in quintetto,
+            # eventuale secondo compatibile in panchina.
+            state='both_missing'
+            vacancies.append((i,'starter',role))
+            vacancies.append((i,'bench',role))
+        module_state.append(state)
 
     tribunal=[]
     for k in range(10,len(enriched)):
@@ -235,63 +259,98 @@ def score_fbl(players, stats, team=None):
         if p.get('explicit_single_fbl_role') and p.get('role') in ('G','A','C'):
             tribunal.append(k)
 
-    base_active=set(range(min(10,len(enriched))))
-    # Status mancanti: non si presume mai ITA.
-    def ita_count(indices):
-        return sum(enriched[k].get('status')=='ITA' for k in indices)
+    # Slot finali di base, prima degli ingressi dalla tribuna. None = posto vuoto.
+    base_slots=[]
+    for i,state in enumerate(module_state):
+        s=enriched[i] if i < len(enriched) else None
+        b=enriched[i+5] if i+5 < len(enriched) else None
+        if state=='normal': base_slots.append([s,b])
+        elif state=='bench_missing': base_slots.append([s,None])
+        elif state=='bench_promoted': base_slots.append([b,None])
+        else: base_slots.append([None,None])
 
-    # Cerca globalmente l'assegnazione valida. Priorita': piu' DNP coperti; poi
-    # ordine di tribuna 11->12->13. Questo evita il bug per cui il primo ITA era
-    # rifiutato perche', da solo, non portava ancora il totale a 3 italiani.
-    choices=[]
-    def rec(vpos, used, mapping):
+    def final_ita_count(mapping):
+        # Il vincolo dei 3 ITA riguarda la COMPOSIZIONE dei 10. Un assente che
+        # non viene sostituito resta uno dei dieci e continua quindi a contare.
+        # Quando entra un tribunaro, invece, sostituisce uno specifico slot della
+        # formazione e ne prende anche il posto ai fini ITA/STR.
+        composition=[enriched[i] if i < len(enriched) else None for i in range(10)]
+        for vpos,k in mapping.items():
+            mod,dest,_=vacancies[vpos]
+            state=module_state[mod]
+            if state=='bench_missing':
+                replaced_index=mod+5
+            elif state=='bench_promoted':
+                # P sale in quintetto e T esce dai dieci; il tribunaro completa
+                # la coppia prendendo, nella composizione, il posto del T assente.
+                replaced_index=mod
+            elif state=='both_missing':
+                replaced_index=mod if dest=='starter' else mod+5
+            else:
+                continue
+            composition[replaced_index]=enriched[k]
+        return sum(p is not None and p.get('status')=='ITA' for p in composition)
+
+    # Enumerazione minuscola (max 3 tribunari): serve per applicare il vincolo ITA
+    # alla formazione FINALE senza sacrificare le priorita' di ordine.
+    candidates=[]
+    def rec(vpos,used,mapping):
         if vpos==len(vacancies):
-            active=set(base_active)
-            for dnp,k in mapping.items():
-                active.discard(dnp); active.add(k)
-            if ita_count(active)>=3:
-                key=(-len(mapping), tuple(sorted(used)), tuple(sorted(mapping.items())))
-                choices.append((key,dict(mapping)))
+            if final_ita_count(mapping) >= 3:
+                # Prima: coprire le vacancy piu' precoci (modulo 1->5).
+                # Poi: usare il tribunaro piu' precoce (11->13) su ciascuna.
+                fill_key=tuple(0 if i in mapping else 1 for i in range(len(vacancies)))
+                trib_key=tuple((mapping[i]-10) if i in mapping else 99 for i in range(len(vacancies)))
+                candidates.append(((fill_key,trib_key),dict(mapping)))
             return
-        dnp,slot,role=vacancies[vpos]
-        # prova prima i tribunari in ordine, poi l'eventuale mancata sostituzione
+        _,_,role=vacancies[vpos]
+        # tribunari rigorosamente 11 -> 12 -> 13
         for k in tribunal:
             if k not in used and enriched[k].get('role')==role:
-                mapping[dnp]=k; used.add(k); rec(vpos+1,used,mapping)
-                used.remove(k); mapping.pop(dnp,None)
+                mapping[vpos]=k; used.add(k); rec(vpos+1,used,mapping)
+                used.remove(k); mapping.pop(vpos,None)
+        # E' possibile lasciare uno slot scoperto se non esiste una soluzione valida.
         rec(vpos+1,used,mapping)
     rec(0,set(),{})
-    replacement=min(choices,key=lambda x:x[0])[1] if choices else {}
+    replacement=min(candidates,key=lambda x:x[0])[1] if candidates else {}
+
+    final_slots=[list(x) for x in base_slots]
+    source_kind=[[None,None] for _ in range(5)]
+    for i,state in enumerate(module_state):
+        if state=='normal': source_kind[i]=['titolare','riserva']
+        elif state=='bench_missing': source_kind[i]=['titolare',None]
+        elif state=='bench_promoted': source_kind[i]=['riserva promossa',None]
+        else: source_kind[i]=[None,None]
+    for vpos,k in replacement.items():
+        mod,dest,_=vacancies[vpos]
+        pos=0 if dest=='starter' else 1
+        final_slots[mod][pos]=enriched[k]
+        source_kind[mod][pos]='tribuna titolare' if pos==0 else 'tribuna'
 
     total=0; details=[]
-    for i in range(min(5,len(enriched))):
-        starter=enriched[i]
-        bench=enriched[i+5] if i+5<len(enriched) else None
-        slot_role=fbl_slot_role(starter)
-        if starter['minutes']==0 and bench is not None:
-            first=bench
-            second=enriched[replacement[i]] if i in replacement else None
-            kinds=('riserva promossa','tribuna')
-        else:
-            first=starter
-            bi=i+5
-            if bench is not None and bench['minutes']==0:
-                second=enriched[replacement[bi]] if bi in replacement else None
-                kinds=('titolare','tribuna')
-            else:
-                second=bench
-                kinds=('titolare','riserva')
+    for i,(first,second) in enumerate(final_slots):
+        # Ruolo visualizzato del modulo: quello del titolare originario; la
+        # compatibilita' della tribuna invece e' gia' stata decisa dal panchinaro.
+        orig_starter=enriched[i] if i < len(enriched) else None
+        slot_role=fbl_role(orig_starter) if orig_starter else ''
         rem=40
-        for p,kind in ((first,kinds[0]),(second,kinds[1])):
+        for pos,p in enumerate((first,second)):
             if p is None or rem<=0: continue
             mins=p['minutes']; take=min(rem,mins)
-            if take<=0: pts=0
-            elif mins<=rem: pts=p['valuation']
-            else: pts=trunc(p['valuation']*rem/mins)
+            # Chi occupa il quintetto prende il 100% della VAL (se presente).
+            # La panchina usa la normale regola FBL sui minuti residui del modulo.
+            if pos==0:
+                pts=p['valuation'] if mins>0 else 0
+            elif take<=0:
+                pts=0
+            elif mins<=rem:
+                pts=p['valuation']
+            else:
+                pts=trunc(p['valuation']*rem/mins)
             total+=pts; rem-=take
-            details.append({'slot':i+1,'slot_role':slot_role,'kind':kind,'name':p['real_name'],'role':p['role'],
-                            'status':p.get('status',''),'minutes':mins,'valuation':p['valuation'],
-                            'used_minutes':take,'fantasy':pts})
+            details.append({'slot':i+1,'slot_role':slot_role,'kind':source_kind[i][pos],
+                            'name':p['real_name'],'role':p['role'],'status':p.get('status',''),
+                            'minutes':mins,'valuation':p['valuation'],'used_minutes':take,'fantasy':pts})
     return total,details
 
 # Ruoli di appoggio per riconoscere i copia/incolla del forum anche quando la formazione
@@ -785,6 +844,7 @@ FBL_ITA_NAMES={norm(x) for x in '''
 Alessandro Cappelletti
 Lorenzo Bucarelli
 Andrea Pecchia
+Andrej Jakimovski
 Francesco Ferrari
 Tommaso Baldasso
 Riccardo Moraschini
@@ -804,6 +864,8 @@ Alessandro Bertini
 Davide Alviti
 Gora Camara
 Nico Mannion
+Niccolo Mannion
+Darius Thompson
 Amedeo Tessitori
 Leonardo Tote
 Riccardo Rossato
@@ -813,6 +875,8 @@ Stefan Nikolic
 Marco Spissu
 Amar Alibegovic
 Karim Jallow
+Mouhamet Rassoul Diouf
+Carl Wheatle
 Giovanni Emejuru
 '''.strip().splitlines()}
 
