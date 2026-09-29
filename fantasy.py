@@ -649,8 +649,12 @@ def detect_team_line(line, competition):
     owner=TEAM_OWNERS.get(competition,{}).get(n)
     if owner: return canonical_team(owner,competition)
     for team in TEAM_NAMES.get(competition,[]):
-        tn=norm(team)
-        if n==tn or (len(n)<45 and tn in n and not ROLE_RE.search(line.upper())):
+        # Una riga di calendario/risultato (es. "Olimpija Ruero – Chi Burdel")
+        # NON e' l'inizio di un post-formazione. In precedenza il test `tn in n`
+        # faceva partire il blocco dal calendario e contaminava/riordinava la
+        # formazione con giocatori dei post successivi. Accettiamo quindi solo
+        # l'intestazione squadra esatta (gli username sono gia' gestiti sopra).
+        if n==norm(team):
             return canonical_team(team,competition)
     return None
 
