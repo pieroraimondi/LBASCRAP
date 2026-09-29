@@ -572,27 +572,68 @@ def roster_match(raw, role, roster_players, learned_aliases=None, team=None):
     if best[0]>=.48 and (best[0]-second>=.04 or best[0]>=.78): return best[1],best[0],candidates
     return raw,best[0],candidates
 
-def parse_formation(text, learned_aliases=None, roster_players=None):
+def parse_formation(text, learned_aliases=None, roster_players=None, competition='pcf_lba'):
+    """Legge *solo* i giocatori effettivamente scritti nel post, nell'ordine scritto.
+
+    Regola fondamentale: il roster NON genera mai una formazione. Viene usato soltanto
+    per riconoscere una riga che esiste davvero nel post (es. ``Sisko`` -> Zan Sisko).
+    Una riga non presente nel post non può quindi comparire tra titolari/panchina.
+    """
     players=[]
-    noise=('messaggi','stato','gruppo','modificato da','multiquote','rispondi','citazione','avatar','punteggio','provenienza','roster ')
-    signature_noise=('campione','palmares','eurolega','fantaNBA','youtube','myspace','sign by','serie a1','promozione in serie','terzo posto')
+    max_players = 13 if competition=='fbl_lba' else 12
+    started=False
+
+    # Marker che chiudono realmente il contenuto del post. Dopo uno di questi non
+    # cerchiamo più giocatori: firme, palmares e post successivi non possono entrare.
+    hard_stop=(
+        'modificato da','messaggio privato','multiquote','view post','inviato il:',
+        'forza basket','www.','youtube','myspace','sign by','palmares',
+        'campione serie','terzo posto','promozione in serie','fanta world cup'
+    )
+    # Righe di servizio che possono stare in mezzo alla formazione ma non sono giocatori.
+    soft_skip=(
+        'titolari','riserve','panchina','tribuna','esclusi','modulo:',
+        'gruppo:','messaggi:','punteggio:','provenienza:','stato:','avatar',
+        'advanced member','member','admin pcf forum','lega a1','lega a2','dnb','dnc',
+        'promozione','eurochallenge','olympic','c regionale','fantabasket'
+    )
+
     for raw in text.splitlines():
-        line=raw.strip()
+        line=raw.strip().strip('\\').strip()
+        if not line: continue
         nl=norm(line)
-        # Metadati/firme del forum vanno esclusi PRIMA di infer_line: stringhe come
-        # "campione serie A1" contengono una A che altrimenti sembra un ruolo.
-        if not line or len(line)>90 or any(z in nl for z in noise) or any(z in nl for z in signature_noise):
+        # Il nome della squadra ripetuto nel post è solo un'intestazione, mai un giocatore.
+        if detect_team_line(line.strip(' *'), competition):
             continue
-        x=infer_line(raw, learned_aliases)
-        if x: players.append(x); continue
-        if not roster_players or len(line)>70: continue
-        clean=re.sub(r'^\s*(?:\d{1,2}[.)]?\s*)','',line).strip()
-        # Per righe senza ruolo, prova SOLO contro il roster della squadra.
-        cand,conf,_=roster_match(clean,'',roster_players,learned_aliases)
-        if conf>=.62:
-            rp=next((p for p in roster_players if norm(p['name'])==norm(cand)),None)
-            if rp: players.append({'name':clean,'role':rp.get('role','')})
-    return players[:15]
+        if started and any(z in nl for z in hard_stop):
+            break
+        if any(nl==z or nl.startswith(z) for z in soft_skip):
+            continue
+        # Prima prova la sintassi esplicita del post: ruolo + nome / nome + ruolo.
+        x=parse_line(line)
+        if x:
+            # Evita che frasi narrative contenenti una singola A/G/C vengano scambiate
+            # per giocatori. Una riga giocatore deve anche corrispondere al roster se
+            # il roster della squadra è disponibile.
+            if roster_players:
+                canonical,conf,_=roster_match(x['name'],x.get('role',''),roster_players,learned_aliases)
+                if conf < .40:
+                    if started: continue
+                    else: continue
+            players.append(x); started=True
+        else:
+            # Formati PCF senza ruolo (es. "Watson Jr", "Hale", ...): accettiamo
+            # esclusivamente una riga che identifica un giocatore DEL roster corrente.
+            if not roster_players or len(line)>55: continue
+            clean=re.sub(r'^\s*(?:\d{1,2}[.)]?\s*)','',line).strip()
+            canonical,conf,_=roster_match(clean,'',roster_players,learned_aliases)
+            if conf>=.48:
+                rp=next((p for p in roster_players if norm(p['name'])==norm(canonical)),None)
+                if rp:
+                    players.append({'name':clean,'role':rp.get('role','')}); started=True
+        if len(players)>=max_players:
+            break
+    return players
 
 # Alias frequenti nei post FBL: servono a disambiguare cognomi/abbreviazioni.
 PLAYER_ALIASES={
@@ -688,7 +729,7 @@ def parse_page(text, competition, learned_aliases=None, rosters=None):
     for pos,(i,team) in enumerate(author_starts):
         end=author_starts[pos+1][0] if pos+1<len(author_starts) else len(lines)
         block='\n'.join(lines[i+1:end])
-        players=parse_formation(block, learned_aliases, (rosters or {}).get(team,[]))
+        players=parse_formation(block, learned_aliases, (rosters or {}).get(team,[]), competition)
         if len(players)>=5:
             forms[team]=players
 
@@ -708,7 +749,7 @@ def parse_page(text, competition, learned_aliases=None, rosters=None):
         stops=[j for j,_ in team_starts if j>i]
         stops += [j for j,_ in author_starts if j>i]
         end=min(stops) if stops else len(lines)
-        players=parse_formation('\n'.join(lines[i+1:end]), learned_aliases, (rosters or {}).get(team,[]))
+        players=parse_formation('\n'.join(lines[i+1:end]), learned_aliases, (rosters or {}).get(team,[]), competition)
         if len(players)>=5 and team not in forms:
             forms[team]=players
 
