@@ -28,11 +28,14 @@ def player_index(games, learned_aliases=None):
     return out
 
 def best_match(name, idx):
-    """Associa il nome di formazione/roster al tabellino reale.
-    Usa exact, cognome univoco e similarità testuale; non trasforma mai un DNP
-    in un altro giocatore solo perché il nome gli somiglia.
+    """Resolve a formation/roster name against the current boxscore.
+
+    Structural rule: prefer the *whole identity* (exact/prefix/token match) before
+    ever falling back to a surname. This prevents e.g. ``Wendell Moore`` from
+    becoming ``Charlie Moore`` when the boxscore writes ``Wendell Moore Jr``.
     """
-    n=norm(name)
+    original=norm(name)
+    n=original
     alias=PLAYER_ALIASES.get(n) if 'PLAYER_ALIASES' in globals() else None
     if alias:
         an=norm(alias)
@@ -40,24 +43,43 @@ def best_match(name, idx):
         n=an
     if n in idx:return idx[n]
     if not n:return (name,0,0)
+
     nt=n.split()
-    # Cognome esatto e univoco: robusto a Valentin/Valentine, iniziali, nomi omessi.
+    # 1) Strong identity match.  Extra suffixes such as Jr/III must not destroy
+    # an otherwise exact first-name+surnname match.
+    strong=[]
+    for k,v in idx.items():
+        kt=k.split()
+        common=set(nt)&set(kt)
+        containment = (len(nt)>=2 and (n.startswith(k+' ') or k.startswith(n+' ')))
+        token_cover = len(common)/max(1,len(set(nt)))
+        ratio=SequenceMatcher(None,n,k).ratio()
+        score=max(ratio, token_cover if len(common)>=2 else 0)
+        if containment: score=max(score,.97)
+        if score>=.82:
+            strong.append((score, abs(len(kt)-len(nt)), v))
+    if strong:
+        strong.sort(key=lambda x:(-x[0],x[1],norm(x[2][0])))
+        if len(strong)==1 or strong[0][0]-strong[1][0]>=.04 or strong[0][0]>=.96:
+            return strong[0][2]
+
+    # 2) Surname-only fallback is allowed only when it is genuinely unique.
     surname=nt[-1]
     surname_hits=[v for k,v in idx.items() if k.split() and k.split()[-1]==surname]
-    # idx può contenere alias duplicati verso lo stesso giocatore: deduplica.
     uniq={norm(v[0]):v for v in surname_hits}
     if len(uniq)==1:return next(iter(uniq.values()))
+
+    # 3) Conservative fuzzy fallback.
     ranked=[]
     for k,v in idx.items():
         ratio=SequenceMatcher(None,n,k).ratio()
         a=set(nt); bb=set(k.split()); jac=len(a&bb)/max(1,len(a|bb))
         score=max(ratio,jac)
-        if surname in bb: score=max(score,.72)
         ranked.append((score,v))
     ranked.sort(key=lambda x:x[0],reverse=True)
     if not ranked:return (name,0,0)
     best_score,best=ranked[0]; second=ranked[1][0] if len(ranked)>1 else 0
-    return best if best_score>=.78 and best_score-second>=.06 else (name,0,0)
+    return best if best_score>=.82 and best_score-second>=.06 else (name,0,0)
 
 def parse_line(line):
     line=re.sub(r'^\s*(?:\d{1,2}[.)]?\s*)','',line.strip())

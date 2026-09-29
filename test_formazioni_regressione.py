@@ -18,3 +18,14 @@ assert names('fbl_lba',fbl,'Drink Team') == ['Glynn Watson','Hunter Hale','Denze
 idx=player_index([{'players':[{'Giocatore':'Valentine CHERY','Minuti':19,'Valutazione':14}]}])
 assert best_match('Valentin Chery',idx)[1:] == (19,14)
 print('OK: test regressione formazioni')
+
+# Identity regression: same surname must never override a stronger full-name match.
+from fantasy import best_match, norm
+idx={norm('Charlie Moore'):('Charlie Moore',25,9), norm('Wendell Moore Jr'):('Wendell Moore Jr',0,0)}
+assert best_match('Wendell Moore',idx)[0]=='Wendell Moore Jr'
+
+# FBL invariant: the posted role/order is authoritative. Aliou Diarra was posted as C
+# and must stay C; the roster's natural/multi-role metadata may never relocate him.
+fbl='''Sprizzaug\nview post Inviato il: 24/9/2026, 11:36\nG MOORE JR\nA CHERY\nA PETERS\nC DIARRA\nC WRIGHT\nG ROSS\nG BROCKINGTON\nA STRAUTINS\nA SIMONOVIC\nC DIOP\nG ZAMPINI\nA LEVER\nC BROWN III\nMessaggio Privato'''
+forms,_=parse_page(fbl,'fbl_lba',{},DEFAULT_ROSTERS['fbl_lba'])
+assert [(p['name'],p['role']) for p in forms['Maccabi Ruero']][3] == ('DIARRA','C')
