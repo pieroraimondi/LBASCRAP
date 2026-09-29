@@ -1,5 +1,6 @@
 """Parser/calcolatore leggero per i tre fantabasket collegati ai tabellini."""
 import re, unicodedata, math
+from default_rosters import DEFAULT_ROSTERS
 from difflib import SequenceMatcher
 
 ROLES=('PM','G','AP','AG','C')
@@ -567,11 +568,17 @@ def roster_match(raw, role, roster_players, learned_aliases=None, team=None):
 def parse_formation(text, learned_aliases=None, roster_players=None):
     players=[]
     noise=('messaggi','stato','gruppo','modificato da','multiquote','rispondi','citazione','avatar','punteggio','provenienza','roster ')
+    signature_noise=('campione','palmares','eurolega','fantaNBA','youtube','myspace','sign by','serie a1','promozione in serie','terzo posto')
     for raw in text.splitlines():
+        line=raw.strip()
+        nl=norm(line)
+        # Metadati/firme del forum vanno esclusi PRIMA di infer_line: stringhe come
+        # "campione serie A1" contengono una A che altrimenti sembra un ruolo.
+        if not line or len(line)>90 or any(z in nl for z in noise) or any(z in nl for z in signature_noise):
+            continue
         x=infer_line(raw, learned_aliases)
         if x: players.append(x); continue
-        line=raw.strip()
-        if not roster_players or not line or len(line)>70 or any(z in norm(line) for z in noise): continue
+        if not roster_players or len(line)>70: continue
         clean=re.sub(r'^\s*(?:\d{1,2}[.)]?\s*)','',line).strip()
         # Per righe senza ruolo, prova SOLO contro il roster della squadra.
         cand,conf,_=roster_match(clean,'',roster_players,learned_aliases)
@@ -682,7 +689,11 @@ def parse_page(text, competition, learned_aliases=None, rosters=None):
     return forms,matchups
 
 def calculate_page(text, competition, games, learned_aliases=None, roster_text=''):
-    rosters=parse_roster_page(roster_text or '',competition)
+    # I roster incorporati sono il fallback iniziale. Un roster incollato dall'utente
+    # sostituisce/aggiorna solo le squadre presenti nel testo caricato.
+    rosters={k:[dict(x) for x in v] for k,v in DEFAULT_ROSTERS.get(competition,{}).items()}
+    uploaded=parse_roster_page(roster_text or '',competition)
+    rosters.update(uploaded)
     forms,matchups=parse_page(text,competition,learned_aliases,rosters)
     stats=player_index(games, learned_aliases)
     teams={}; resolution=[]
@@ -711,8 +722,15 @@ def calculate_page(text, competition, games, learned_aliases=None, roster_text='
         raw=r['raw']; canonical=r['canonical']; team=r['team']
         # canonical roster name -> nome ufficiale tabellino
         official=best_match(canonical,stats)[0]
-        ok=norm(official) in stat_names
-        if ok and norm(raw)!=norm(official): suggestions[raw]=official
+        stats_ok=norm(official) in stat_names
+        # Se il nome è stato risolto con sicurezza CONTRO IL ROSTER della squadra,
+        # è valido anche quando non compare nel tabellino (DNP/non convocato = 0').
+        # Non ha senso chiedere di convalidare Nico Mannion o Garrison Mathews solo
+        # perché quel giorno non sono presenti nell'elenco statistiche.
+        roster_ok = r['confidence'] >= .48 and any(norm(canonical)==norm(p.get('name','')) for p in rosters.get(team,[]))
+        ok = stats_ok or roster_ok
+        if stats_ok and norm(raw)!=norm(official): suggestions[raw]=official
+        elif roster_ok and norm(raw)!=norm(canonical): suggestions[raw]=canonical
         if not ok:
             unresolved.append({'team':team,'name':raw,'role':r['role'],'candidates':r['candidates']})
     valid=not unresolved and all(len(v.get('players',[]))>=10 for v in teams.values())
