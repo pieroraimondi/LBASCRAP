@@ -29,3 +29,27 @@ assert best_match('Wendell Moore',idx)[0]=='Wendell Moore Jr'
 fbl='''Sprizzaug\nview post Inviato il: 24/9/2026, 11:36\nG MOORE JR\nA CHERY\nA PETERS\nC DIARRA\nC WRIGHT\nG ROSS\nG BROCKINGTON\nA STRAUTINS\nA SIMONOVIC\nC DIOP\nG ZAMPINI\nA LEVER\nC BROWN III\nMessaggio Privato'''
 forms,_=parse_page(fbl,'fbl_lba',{},DEFAULT_ROSTERS['fbl_lba'])
 assert [(p['name'],p['role']) for p in forms['Maccabi Ruero']][3] == ('DIARRA','C')
+
+# End-to-end identity safety: if Wendell is absent from the boxscore, Charlie Moore
+# must NEVER be borrowed from another team. An old poisoned learned alias is ignored
+# because Charlie is not in Olimpija's current roster.
+from fantasy import calculate_page
+page='''sprizzaug\nview post Inviato il: 23/9/2026\nPM - Darius Brown\nG/AP - Wendell Moore\nAP/AG - Trentyn Flowers\nAG/C - Aliou Diarra\nC - Chad Brown\nPM/G - Alessandro Manfredotti\nPM/G - Davide Casarin\nAP - Giovanni Veronesi\nAP/AG - Andrej Jakimovski\nAG/C - Jordan Bayehe\nPM/G - Marcus Carr\nC - Maximilian Ladurner\nMessaggio Privato'''
+games=[{'players':[{'Giocatore':'Charlie Edward Moore','Minuti':25,'Valutazione':9},
+                   {'Giocatore':'Darius Brown','Minuti':27,'Valutazione':11},
+                   {'Giocatore':'Trentyn Flowers','Minuti':5,'Valutazione':3},
+                   {'Giocatore':'Aliou Diarra','Minuti':15,'Valutazione':6},
+                   {'Giocatore':'Chad Brown','Minuti':18,'Valutazione':9}]}]
+r=calculate_page(page,'pcf_lba',games,{'olimpija ruero|||wendell moore':'Charlie Edward Moore'})
+d=r['teams']['Olimpija Ruero']['details']
+assert d[1]['name'] != 'Charlie Edward Moore', d[1]
+assert d[1]['name']=='Wendell Moore' and d[1]['minutes']==0 and d[1]['fantasy']==0, d[1]
+
+# End-to-end FBL role invariant: roster says Aliou Diarra is C and posted C stays C.
+fbl_page='''Sprizzaug\nview post Inviato il: 24/9/2026, 11:36\nG MOORE JR\nA CHERY\nA PETERS\nC DIARRA\nC WRIGHT\nG ROSS\nG BROCKINGTON\nA STRAUTINS\nA SIMONOVIC\nC DIOP\nG ZAMPINI\nA LEVER\nC BROWN III\nMessaggio Privato'''
+r=calculate_page(fbl_page,'fbl_lba',[{'players':[{'Giocatore':'Aliou Diarra','Minuti':15,'Valutazione':6}]}],{})
+parsed=r['parsed_formations']['Maccabi Ruero']
+assert parsed[3]['role']=='C' and parsed[3]['canonical']=='Aliou Diarra', parsed[3]
+diarra_details=[x for x in r['teams']['Maccabi Ruero']['details'] if norm(x.get('name',''))==norm('Aliou Diarra')]
+assert diarra_details and diarra_details[0]['slot_role']=='C' and diarra_details[0]['role']=='C', diarra_details
+print('OK: identity DNP + learned alias guard + FBL posted-role invariants')

@@ -28,58 +28,67 @@ def player_index(games, learned_aliases=None):
     return out
 
 def best_match(name, idx):
-    """Resolve a formation/roster name against the current boxscore.
+    """Resolve a *canonical* player identity against the current boxscore.
 
-    Structural rule: prefer the *whole identity* (exact/prefix/token match) before
-    ever falling back to a surname. This prevents e.g. ``Wendell Moore`` from
-    becoming ``Charlie Moore`` when the boxscore writes ``Wendell Moore Jr``.
+    Safety invariant: a player missing from the boxscore is a DNP (0/0), never
+    another player with a similar surname. Fuzzy matching is allowed only when
+    first-name and surname evidence are both compatible; surname-only matching
+    is reserved for genuinely one-token inputs.
     """
-    original=norm(name)
-    n=original
+    requested=name
+    n=norm(name)
     alias=PLAYER_ALIASES.get(n) if 'PLAYER_ALIASES' in globals() else None
     if alias:
-        an=norm(alias)
-        if an in idx: return idx[an]
-        n=an
-    if n in idx:return idx[n]
-    if not n:return (name,0,0)
+        n=norm(alias); requested=alias
+    if n in idx: return idx[n]
+    if not n: return (name,0,0)
 
     nt=n.split()
-    # 1) Strong identity match.  Extra suffixes such as Jr/III must not destroy
-    # an otherwise exact first-name+surnname match.
-    strong=[]
-    for k,v in idx.items():
-        kt=k.split()
-        common=set(nt)&set(kt)
-        containment = (len(nt)>=2 and (n.startswith(k+' ') or k.startswith(n+' ')))
-        token_cover = len(common)/max(1,len(set(nt)))
-        ratio=SequenceMatcher(None,n,k).ratio()
-        score=max(ratio, token_cover if len(common)>=2 else 0)
-        if containment: score=max(score,.97)
-        if score>=.82:
-            strong.append((score, abs(len(kt)-len(nt)), v))
-    if strong:
-        strong.sort(key=lambda x:(-x[0],x[1],norm(x[2][0])))
-        if len(strong)==1 or strong[0][0]-strong[1][0]>=.04 or strong[0][0]>=.96:
-            return strong[0][2]
+    suffixes={'jr','sr','ii','iii','iv','v'}
+    core=[t for t in nt if t not in suffixes]
 
-    # 2) Surname-only fallback is allowed only when it is genuinely unique.
-    surname=nt[-1]
-    surname_hits=[v for k,v in idx.items() if k.split() and k.split()[-1]==surname]
-    uniq={norm(v[0]):v for v in surname_hits}
-    if len(uniq)==1:return next(iter(uniq.values()))
-
-    # 3) Conservative fuzzy fallback.
-    ranked=[]
+    # Full identity, allowing only suffix/punctuation differences.
+    exactish=[]
     for k,v in idx.items():
-        ratio=SequenceMatcher(None,n,k).ratio()
-        a=set(nt); bb=set(k.split()); jac=len(a&bb)/max(1,len(a|bb))
-        score=max(ratio,jac)
-        ranked.append((score,v))
-    ranked.sort(key=lambda x:x[0],reverse=True)
-    if not ranked:return (name,0,0)
-    best_score,best=ranked[0]; second=ranked[1][0] if len(ranked)>1 else 0
-    return best if best_score>=.82 and best_score-second>=.06 else (name,0,0)
+        kt=k.split(); kcore=[t for t in kt if t not in suffixes]
+        if core==kcore or (len(core)>=2 and (n.startswith(k+' ') or k.startswith(n+' '))):
+            exactish.append(v)
+    uniq={norm(v[0]):v for v in exactish}
+    if len(uniq)==1: return next(iter(uniq.values()))
+
+    # A one-token forum abbreviation may use a unique surname. Full names may NOT:
+    # this is precisely what used to turn Wendell Moore into Charlie Moore.
+    if len(core)==1:
+        token=core[0]
+        hits=[]
+        for k,v in idx.items():
+            kc=[t for t in k.split() if t not in suffixes]
+            if kc and (kc[-1]==token or kc[0]==token): hits.append(v)
+        uniq={norm(v[0]):v for v in hits}
+        if len(uniq)==1:return next(iter(uniq.values()))
+
+    # Conservative typo tolerance for full identities: first and last token must
+    # independently agree. A shared surname alone can never select a player.
+    if len(core)>=2:
+        ranked=[]
+        for k,v in idx.items():
+            kc=[t for t in k.split() if t not in suffixes]
+            if len(kc)<2: continue
+            first=SequenceMatcher(None,core[0],kc[0]).ratio()
+            last=SequenceMatcher(None,core[-1],kc[-1]).ratio()
+            whole=SequenceMatcher(None,' '.join(core),' '.join(kc)).ratio()
+            # Middle names/initials may appear only in the official feed
+            # (e.g. Charlie Moore -> Charlie Edward Moore). Exact first+last is
+            # therefore a strong identity even when whole-string similarity drops.
+            if (first>=.98 and last>=.98) or (first>=.72 and last>=.82 and whole>=.84):
+                identity=max(whole, .96 if first>=.98 and last>=.98 else whole)
+                ranked.append((identity,first,last,v))
+        ranked.sort(key=lambda x:(-x[0],-x[1],-x[2],norm(x[3][0])))
+        if ranked and (len(ranked)==1 or ranked[0][0]-ranked[1][0]>=.05):
+            return ranked[0][3]
+
+    # Canonical player not present in this day's stats => DNP/non-convocato.
+    return (requested,0,0)
 
 def parse_line(line):
     line=re.sub(r'^\s*(?:\d{1,2}[.)]?\s*)','',line.strip())
@@ -581,7 +590,12 @@ def roster_match(raw, role, roster_players, learned_aliases=None, team=None):
     aliases=learned_aliases or {}
     scoped = f"{norm(team)}|||{norm(raw)}" if team else None
     alias=(aliases.get(scoped) if scoped else None) or aliases.get(raw) or aliases.get(norm(raw))
-    if alias: return alias,1.0,[alias]
+    # Un alias appreso non e' autoritativo per sempre: deve ancora appartenere
+    # al roster ATTUALE della squadra. Questo impedisce a una vecchia convalida
+    # errata (es. Wendell Moore -> Charlie Moore) di contaminare giornate future.
+    if alias:
+        if not roster_players or any(norm(alias)==norm(p.get('name','')) for p in roster_players):
+            return alias,1.0,[alias]
     if not roster_players:return raw,0.0,[]
     wanted=set(role_parts(role))
     ranked=[]
