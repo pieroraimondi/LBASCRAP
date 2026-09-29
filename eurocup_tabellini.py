@@ -1,4 +1,4 @@
-"""EuroLeague 2026/27 schedule and boxscore reader using the public v2 feed."""
+"""EuroCup 2026/27 schedule and boxscore reader using the public v2 feed."""
 import json
 import time
 import math
@@ -8,9 +8,9 @@ from urllib.request import Request, urlopen
 
 from lba_tabellini import FIELDS
 
-BASE = 'https://api-live.euroleague.net/v2/competitions/E/seasons/E2026'
-MIRROR = 'https://feeds.incrowdsports.com/provider/euroleague-feeds/v2/competitions/E/seasons/E2026'
-LEGACY_BOXSCORE = 'https://live.euroleague.net/api/Boxscore?gamecode={game_code}&seasoncode=E2026'
+BASE = 'https://api-live.euroleague.net/v2/competitions/U/seasons/U2026'
+MIRROR = 'https://feeds.incrowdsports.com/provider/euroleague-feeds/v2/competitions/U/seasons/U2026'
+LEGACY_BOXSCORE = 'https://live.euroleague.net/api/Boxscore?gamecode={game_code}&seasoncode=U2026'
 
 
 def _json(url, retries=3):
@@ -75,19 +75,19 @@ def schedule():
             if isinstance(rows,list): return rows
             errors.append(f'{base}: formato calendario inatteso')
         except Exception as exc: errors.append(f'{base}: {exc}')
-    raise RuntimeError('EuroLeague calendario non disponibile. '+' | '.join(errors))
+    raise RuntimeError('EuroCup calendario non disponibile. '+' | '.join(errors))
 
 
 def games_for_round(day):
     day=int(day)
     rows=[g for g in schedule() if _round(g)==day]
     rows.sort(key=lambda g:int(_first(g,'gameCode',default=0) or 0))
-    if not rows: raise ValueError(f'Nessuna partita EuroLeague trovata per la giornata {day}.')
+    if not rows: raise ValueError(f'Nessuna partita EuroCup trovata per la giornata {day}.')
     return rows
 
 
 def _minutes(v):
-    """Normalise EuroLeague timePlayed to whole minutes.
+    """Normalise EuroCup timePlayed to whole minutes.
 
     v2 game stats exposes timePlayed as seconds (float); the legacy live
     Boxscore exposes Minutes as MM:SS.  The rest of LBASCRAP works with
@@ -214,7 +214,7 @@ def game_from_schedule(g, day, with_players=True):
                 result['error'] = f'v2 senza giocatori; fallback live fallito: {legacy_exc}'
         result['players']=rows
         if played and not rows and not result['error']:
-            result['error']='Boxscore EuroLeague vuoto (v2 e fallback live).'
+            result['error']='Boxscore EuroCup vuoto (v2 e fallback live).'
     except Exception as exc:
         # If the v2 request itself fails, still try the official legacy feed.
         try:

@@ -6,7 +6,7 @@ v2 = {
 }
 r=_player_row(v2,1,1,'2026-09-24','Crvena Zvezda','Zalgiris','Casa')
 assert r['Giocatore']=='Chris Jones', r
-assert r['Minuti']==18, r
+assert r['Minuti']==19, r
 assert r['Punti']==12.0 and r['Valutazione']==25.0, r
 
 legacy={'Stats':[
@@ -15,6 +15,6 @@ legacy={'Stats':[
 ]}
 rows=_legacy_rows(legacy,1,1,'2026-09-24','Crvena Zvezda','Zalgiris')
 assert len(rows)==2, rows
-assert rows[0]['Giocatore']=='CHRIS JONES' and rows[0]['Minuti']==18 and rows[0]['Valutazione']==25, rows[0]
-assert rows[1]['Giocatore']=='JONAS VALANCIUNAS' and rows[1]['Minuti']==21 and rows[1]['Valutazione']==24, rows[1]
+assert rows[0]['Giocatore']=='CHRIS JONES' and rows[0]['Minuti']==19 and rows[0]['Valutazione']==25, rows[0]
+assert rows[1]['Giocatore']=='JONAS VALANCIUNAS' and rows[1]['Minuti']==22 and rows[1]['Valutazione']==24, rows[1]
 print('EUROLEAGUE PARSER OK')

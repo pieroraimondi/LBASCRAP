@@ -15,6 +15,7 @@ from excel_export import make_xlsx
 from lba_tabellini import fetch_game
 from fantasy import calculate_page
 from euroleague_tabellini import games_for_round, game_from_schedule
+from eurocup_tabellini import games_for_round as eurocup_games_for_round, game_from_schedule as eurocup_game_from_schedule
 
 ROOT = Path(__file__).parent
 HTML = (ROOT / 'index.html').read_bytes()
@@ -184,6 +185,24 @@ def get_euro_scores(day):
             for g in [game_from_schedule(row, day, with_players=False) for row in games_for_round(day)]]
 
 
+def get_eurocup_day(day):
+    with LOCK:
+        cached = CACHE.get(('eurocup', day))
+        if cached and time.monotonic() - cached[0] < 60:
+            return cached[1]
+    schedule_rows = eurocup_games_for_round(day)
+    games = [eurocup_game_from_schedule(row, day, with_players=True) for row in schedule_rows]
+    result = {'day': int(day), 'games': games}
+    with LOCK:
+        CACHE[('eurocup', day)] = (time.monotonic(), result)
+    return result
+
+
+def get_eurocup_scores(day):
+    return [{key: g[key] for key in ('id','status','score','periods','quarter','datetime')}
+            for g in [eurocup_game_from_schedule(row, day, with_players=False) for row in eurocup_games_for_round(day)]]
+
+
 class Handler(BaseHTTPRequestHandler):
     def respond(self, status, body, content_type, attachment=None):
         self.send_response(status)
@@ -240,18 +259,18 @@ class Handler(BaseHTTPRequestHandler):
             params = parse_qs(url.query)
             day = params.get('day', [''])[0]
             league = params.get('league', ['lba'])[0]
-            if league not in ('lba', 'a2', 'euro') or not re.fullmatch(r'\d{1,2}', day):
+            if league not in ('lba', 'a2', 'euro', 'eurocup') or not re.fullmatch(r'\d{1,2}', day):
                 return self.json_response(400, {'error': 'Giornata non valida.'})
-            if league == 'lba' and day not in CALENDAR or league == 'a2' and day not in A2_CALENDAR or league == 'euro' and not (1 <= int(day) <= 38):
+            if league == 'lba' and day not in CALENDAR or league == 'a2' and day not in A2_CALENDAR or league == 'euro' and not (1 <= int(day) <= 38) or league == 'eurocup' and not (1 <= int(day) <= 18):
                 return self.json_response(400, {'error': 'Giornata non valida.'})
             if url.path == '/api/scores':
                 try:
-                    score_fun = {'lba': get_lba_scores, 'a2': get_a2_scores, 'euro': get_euro_scores}[league]
+                    score_fun = {'lba': get_lba_scores, 'a2': get_a2_scores, 'euro': get_euro_scores, 'eurocup': get_eurocup_scores}[league]
                     return self.json_response(200, {'games': score_fun(day)})
                 except Exception as exc:
                     return self.json_response(502, {'error': str(exc)})
             try:
-                day_fun = {'lba': get_lba_day, 'a2': get_a2_day, 'euro': get_euro_day}[league]
+                day_fun = {'lba': get_lba_day, 'a2': get_a2_day, 'euro': get_euro_day, 'eurocup': get_eurocup_day}[league]
                 result = day_fun(day)
             except Exception as exc:
                 return self.json_response(502, {'error': str(exc)})
@@ -260,12 +279,12 @@ class Handler(BaseHTTPRequestHandler):
             if any(g['error'] for g in result['games']):
                 return self.json_response(502, {'error': 'Alcune partite non sono state lette: riprova prima di esportare.'})
             content = make_xlsx(int(day), result['games'])
-            name = {'lba':'LBA','a2':'LNP_A2','euro':'EUROLEAGUE'}[league]
+            name = {'lba':'LBA','a2':'LNP_A2','euro':'EUROLEAGUE','eurocup':'EUROCUP'}[league]
             return self.respond(200, content, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', f'{name}_2026-27_giornata_{int(day):02d}.xlsx')
         self.json_response(404, {'error': 'Pagina non trovata.'})
 
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', '10000'))
-    print(f'Server LBA / LNP A2 / EuroLeague in ascolto sulla porta {port}', flush=True)
+    print(f'Server LBA / LNP A2 / EuroLeague / EuroCup in ascolto sulla porta {port}', flush=True)
     ThreadingHTTPServer(('0.0.0.0', port), Handler).serve_forever()
