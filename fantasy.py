@@ -28,29 +28,36 @@ def player_index(games, learned_aliases=None):
     return out
 
 def best_match(name, idx):
+    """Associa il nome di formazione/roster al tabellino reale.
+    Usa exact, cognome univoco e similarità testuale; non trasforma mai un DNP
+    in un altro giocatore solo perché il nome gli somiglia.
+    """
     n=norm(name)
     alias=PLAYER_ALIASES.get(n) if 'PLAYER_ALIASES' in globals() else None
-    # Un alias puo' essere una forma canonica piu' corta del nome ufficiale
-    # del tabellino (es. David Cournooh -> David Reginald Cournooh). In tal
-    # caso usa l'alias anche per il fuzzy matching, non solo per l'exact match.
     if alias:
         an=norm(alias)
         if an in idx: return idx[an]
         n=an
     if n in idx:return idx[n]
-    nt=set(n.split()); ranked=[]
+    if not n:return (name,0,0)
+    nt=n.split()
+    # Cognome esatto e univoco: robusto a Valentin/Valentine, iniziali, nomi omessi.
+    surname=nt[-1]
+    surname_hits=[v for k,v in idx.items() if k.split() and k.split()[-1]==surname]
+    # idx può contenere alias duplicati verso lo stesso giocatore: deduplica.
+    uniq={norm(v[0]):v for v in surname_hits}
+    if len(uniq)==1:return next(iter(uniq.values()))
+    ranked=[]
     for k,v in idx.items():
-        kt=set(k.split()); common=len(nt & kt)
-        s=common/max(1,len(nt|kt))
-        # bonus prudente per cognome esatto: utile per i post che omettono il nome.
-        if nt and kt and list(nt)[-1] in kt: s += .08
-        ranked.append((s,v))
-    ranked.sort(key=lambda x:x[0], reverse=True)
-    if not ranked: return (name,0,0)
-    best_score,best=ranked[0]
-    second=ranked[1][0] if len(ranked)>1 else 0
-    # Mai indovinare un nome dubbio: richiede un match forte e distaccato.
-    return best if best_score>=.60 and best_score-second>=.12 else (name,0,0)
+        ratio=SequenceMatcher(None,n,k).ratio()
+        a=set(nt); bb=set(k.split()); jac=len(a&bb)/max(1,len(a|bb))
+        score=max(ratio,jac)
+        if surname in bb: score=max(score,.72)
+        ranked.append((score,v))
+    ranked.sort(key=lambda x:x[0],reverse=True)
+    if not ranked:return (name,0,0)
+    best_score,best=ranked[0]; second=ranked[1][0] if len(ranked)>1 else 0
+    return best if best_score>=.78 and best_score-second>=.06 else (name,0,0)
 
 def parse_line(line):
     line=re.sub(r'^\s*(?:\d{1,2}[.)]?\s*)','',line.strip())
@@ -659,32 +666,64 @@ def detect_team_line(line, competition):
     return None
 
 def parse_page(text, competition, learned_aliases=None, rosters=None):
+    """Estrae le formazioni dai POST, non dal semplice susseguirsi di nomi squadra.
+
+    Priorità assoluta agli username-autore noti: un blocco parte dalla riga autore e
+    termina al successivo autore. Il nome squadra eventualmente ripetuto dentro il
+    post è solo un'intestazione e non apre un nuovo blocco. Solo per squadre non
+    trovate via autore usiamo come fallback una riga contenente ESATTAMENTE il nome
+    squadra. Questo impedisce contaminazioni tra PCF LBA/LNP e tra calendario/post.
+    """
     lines=text.replace('\r','').split('\n')
-    starts=[]
+    owners=TEAM_OWNERS.get(competition,{})
+
+    # 1) Blocchi autore -> autore: è la struttura reale del forum.
+    author_starts=[]
     for i,line in enumerate(lines):
-        t=detect_team_line(line.strip(' *'),competition)
-        if t: starts.append((i,t))
+        owner=owners.get(norm(line.strip(' *')))
+        if owner:
+            author_starts.append((i,canonical_team(owner,competition)))
+
     forms={}
-    for pos,(i,t) in enumerate(starts):
-        end=starts[pos+1][0] if pos+1<len(starts) else len(lines)
+    for pos,(i,team) in enumerate(author_starts):
+        end=author_starts[pos+1][0] if pos+1<len(author_starts) else len(lines)
         block='\n'.join(lines[i+1:end])
-        p=parse_formation(block, learned_aliases, (rosters or {}).get(t,[]))
-        if len(p)>=5 and (t not in forms or len(p)>len(forms[t])): forms[t]=p
-    # accoppiamenti: cerca righe con due nomi squadra e trattino lungo/corto
+        players=parse_formation(block, learned_aliases, (rosters or {}).get(team,[]))
+        if len(players)>=5:
+            forms[team]=players
+
+    # 2) Fallback per copia/incolla senza username: solo intestazione squadra ESATTA.
+    # Non sovrascrive mai una formazione già letta dal relativo autore.
+    team_starts=[]
+    for i,line in enumerate(lines):
+        n=norm(line.strip(' *'))
+        for team in TEAM_NAMES.get(competition,[]):
+            if n==norm(team):
+                ct=canonical_team(team,competition)
+                if ct not in forms:
+                    team_starts.append((i,ct))
+                break
+    for pos,(i,team) in enumerate(team_starts):
+        # termina al prossimo autore noto o alla prossima intestazione squadra fallback
+        stops=[j for j,_ in team_starts if j>i]
+        stops += [j for j,_ in author_starts if j>i]
+        end=min(stops) if stops else len(lines)
+        players=parse_formation('\n'.join(lines[i+1:end]), learned_aliases, (rosters or {}).get(team,[]))
+        if len(players)>=5 and team not in forms:
+            forms[team]=players
+
+    # Accoppiamenti: il calendario è indipendente dai blocchi formazione.
     matchups=[]
     matchup_lines=lines
     if competition=='fbl_lba':
         for cut,line in enumerate(lines):
             if norm(line)=='supercoppa':
-                matchup_lines=lines[:cut]
-                break
+                matchup_lines=lines[:cut]; break
     for line in matchup_lines:
         if '–' not in line and ' - ' not in line: continue
-        found=[]
-        nl=norm(line)
+        found=[]; nl=norm(line)
         for team in TEAM_NAMES.get(competition,[]):
             if norm(team) in nl: found.append(canonical_team(team,competition))
-        # preserva ordine di apparizione e rimuove alias duplicati
         found=list(dict.fromkeys(found))
         found=sorted(found, key=lambda t:min([nl.find(norm(x)) for x in TEAM_NAMES.get(competition,[]) if canonical_team(x,competition)==t and norm(x) in nl] or [9999]))
         if len(found)>=2 and found[0]!=found[1]:
@@ -739,4 +778,5 @@ def calculate_page(text, competition, games, learned_aliases=None, roster_text='
             unresolved.append({'team':team,'name':raw,'role':r['role'],'candidates':r['candidates']})
     valid=not unresolved and all(len(v.get('players',[]))>=10 for v in teams.values())
     return {'teams':teams,'matchups':results,'detected':list(forms),
+            'parsed_formations':{t:[{'name':p.get('source_name',p.get('name','')),'canonical':p.get('name',''),'role':p.get('role','')} for p in v.get('players',[])] for t,v in teams.items()},
             'alias_suggestions':suggestions,'unresolved':unresolved,'rosters':{k:len(v) for k,v in rosters.items()},'roster_players':rosters,'valid':valid}
