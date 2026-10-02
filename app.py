@@ -13,7 +13,6 @@ from urllib.request import Request, urlopen
 from a2_tabellini import date_iso, read_boxscore
 from excel_export import make_xlsx
 from lba_tabellini import fetch_game
-from fantasy import calculate_page
 from euroleague_tabellini import games_for_round, game_from_schedule
 from eurocup_tabellini import games_for_round as eurocup_games_for_round, game_from_schedule as eurocup_game_from_schedule
 
@@ -217,35 +216,6 @@ class Handler(BaseHTTPRequestHandler):
 
     def json_response(self, status, data):
         self.respond(status, json.dumps(data, ensure_ascii=False).encode(), 'application/json; charset=utf-8')
-
-    def do_POST(self):
-        url = urlsplit(self.path)
-        if url.path != '/api/fantasy/calculate':
-            return self.json_response(404, {'error': 'Pagina non trovata.'})
-        try:
-            length = int(self.headers.get('Content-Length', '0'))
-            if length > 2_000_000:
-                return self.json_response(413, {'error': 'Testo troppo grande.'})
-            data = json.loads(self.rfile.read(length) or b'{}')
-            competition = data.get('competition', '')
-            day = str(data.get('day', ''))
-            text = data.get('text', '')
-            aliases = data.get('aliases') or {}
-            roster_text = data.get('roster_text') or ''
-            if not isinstance(aliases, dict): aliases = {}
-            if competition not in ('pcf_lba', 'pcf_lnp', 'fbl_lba'):
-                return self.json_response(400, {'error': 'Fantabasket non valido.'})
-            source = 'a2' if competition == 'pcf_lnp' else 'lba'
-            cal = A2_CALENDAR if source == 'a2' else CALENDAR
-            if day not in cal:
-                return self.json_response(400, {'error': 'Giornata non valida.'})
-            games = (get_a2_day(day) if source == 'a2' else get_lba_day(day))['games']
-            result = calculate_page(text, competition, games, aliases, roster_text)
-            result['day'] = int(day)
-            result['competition'] = competition
-            return self.json_response(200, result)
-        except Exception as exc:
-            return self.json_response(500, {'error': str(exc)})
 
     def do_GET(self):
         url = urlsplit(self.path)

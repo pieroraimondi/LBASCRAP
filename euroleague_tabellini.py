@@ -191,10 +191,18 @@ def game_from_schedule(g, day, with_players=True):
     code=_first(g,'gameCode',default='')
     home=_side_name(g,'local') or 'Casa'; away=_side_name(g,'road') or 'Ospite'; date=_datetime(g)
     hs=_score(g,'local'); as_=_score(g,'road')
-    played = hs not in ('',None) and as_ not in ('',None)
-    status='TERMINATA' if played else 'DA GIOCARE'
-    result={'id':str(code),'home':home,'away':away,'status':status,'datetime':date,'score':f'{hs} - {as_}' if played else '', 'periods':[],'quarter':'','players':[],'error':''}
-    if not with_players or not played: return result
+    # The schedule feed exposes explicit lifecycle fields. Scores are NOT a
+    # reliable completion flag: future games can already contain 0-0 values.
+    played_flag = _first(g, 'played', 'isPlayed', default=False)
+    if isinstance(played_flag, str):
+        played_flag = played_flag.strip().lower() in ('1','true','yes','y')
+    raw_status = str(_first(g, 'gameStatus', 'status', default='') or '').strip().upper()
+    live_tokens = ('LIVE','IN PROGRESS','IN_PROGRESS','PLAYING','STARTED','RUNNING')
+    is_live = (not bool(played_flag)) and any(tok in raw_status for tok in live_tokens)
+    status = 'TERMINATA' if bool(played_flag) else ('IN CORSO' if is_live else 'DA GIOCARE')
+    has_score = status in ('IN CORSO','TERMINATA') and hs not in ('',None) and as_ not in ('',None)
+    result={'id':str(code),'home':home,'away':away,'status':status,'datetime':date,'score':f'{hs} - {as_}' if has_score else '', 'periods':[],'quarter':'','players':[],'error':''}
+    if not with_players or status == 'DA GIOCARE': return result
     try:
         payload=_stats(code)
         rows=[]
@@ -213,7 +221,7 @@ def game_from_schedule(g, day, with_players=True):
             except Exception as legacy_exc:
                 result['error'] = f'v2 senza giocatori; fallback live fallito: {legacy_exc}'
         result['players']=rows
-        if played and not rows and not result['error']:
+        if status == 'TERMINATA' and not rows and not result['error']:
             result['error']='Boxscore EuroLeague vuoto (v2 e fallback live).'
     except Exception as exc:
         # If the v2 request itself fails, still try the official legacy feed.
