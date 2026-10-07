@@ -90,14 +90,14 @@ def _minutes(v):
     """Normalise EuroCup timePlayed to whole minutes.
 
     v2 game stats exposes timePlayed as seconds (float); the legacy live
-    Boxscore exposes Minutes as MM:SS.  The rest of LBASCRAP works with
-    completed whole minutes, so both shapes are normalised here.
+    Boxscore exposes Minutes as MM:SS. LBASCRAP rounds any positive
+    fraction of a minute up to the next whole minute.
     """
     if v in (None, ''): return ''
     if isinstance(v, (int, float)):
-        # v2: seconds, e.g. 1088.0 == 18:08.  Small numeric values are
-        # accepted as already-minute values for defensive compatibility.
-        return int(math.ceil(v / 60.0)) if v > 60 else int(math.ceil(v))
+        # v2: ALWAYS seconds, including values below 60.
+        # Examples: 47 -> 1 minute; 60 -> 1; 61 -> 2.
+        return int(math.ceil(v / 60.0)) if v > 0 else 0
     s = str(v).strip()
     if not s or s.upper() == 'DNP': return 0
     if ':' in s:
@@ -107,7 +107,7 @@ def _minutes(v):
         except ValueError: return ''
     try:
         n = float(s)
-        return int(math.ceil(n / 60.0)) if n > 60 else int(math.ceil(n))
+        return int(math.ceil(n / 60.0)) if n > 0 else 0
     except ValueError: return ''
 
 

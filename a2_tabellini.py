@@ -78,9 +78,13 @@ def read_boxscore(game_id, home, away, day, date, allow_empty=False):
             cells = re.findall(r'<td[^>]*>(.*?)</td>', row, re.S)
             if len(cells) == 23:
                 stats.append([number(cell) for cell in cells])
-        if len(stats) != len(identities) + 1:
+        # Le righe statistiche dei giocatori precedono le righe aggregate/footer.
+        # LNP può aggiungere o togliere righe di riepilogo (totali, staff, ecc.):
+        # non devono invalidare un boxscore altrimenti completo.
+        if len(stats) < len(identities):
             raise ValueError('Numero giocatori/statistiche incoerente')
-        for (jersey, name), values in zip(identities, stats):
+        player_stats = stats[:len(identities)]
+        for (jersey, name), values in zip(identities, player_stats):
             p = dict.fromkeys(FIELDS, '')
             p.update(GameID=game_id, Giornata=day, Data=date, Squadra=team,
                      Avversaria=opponent, Casa_Trasferta=side, Giocatore=name,
