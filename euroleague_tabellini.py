@@ -197,11 +197,15 @@ def game_from_schedule(g, day, with_players=True):
     if isinstance(played_flag, str):
         played_flag = played_flag.strip().lower() in ('1','true','yes','y')
     raw_status = str(_first(g, 'gameStatus', 'status', default='') or '').strip().upper()
-    live_tokens = ('LIVE','IN PROGRESS','IN_PROGRESS','PLAYING','STARTED','RUNNING')
+    # The feed's `played` flag is authoritative for completed games.
+    # gameStatus/status is used only for explicit live states; never infer
+    # completion merely because a score (including 0-0) is present.
+    live_tokens = ('LIVE','IN PROGRESS','IN_PROGRESS','PLAYING','STARTED','RUNNING','ONGOING')
     is_live = (not bool(played_flag)) and any(tok in raw_status for tok in live_tokens)
     status = 'TERMINATA' if bool(played_flag) else ('IN CORSO' if is_live else 'DA GIOCARE')
     has_score = status in ('IN CORSO','TERMINATA') and hs not in ('',None) and as_ not in ('',None)
-    result={'id':str(code),'home':home,'away':away,'status':status,'datetime':date,'score':f'{hs} - {as_}' if has_score else '', 'periods':[],'quarter':'','players':[],'error':''}
+    shown_score = f'{hs} - {as_}' if has_score else '0 - 0'
+    result={'id':str(code),'home':home,'away':away,'status':status,'datetime':date,'score':shown_score, 'periods':[],'quarter':'','players':[],'error':''}
     if not with_players or status == 'DA GIOCARE': return result
     try:
         payload=_stats(code)

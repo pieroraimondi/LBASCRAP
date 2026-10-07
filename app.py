@@ -39,7 +39,7 @@ def fetch_match(game_id):
 def score_data(match):
     status = match_status(match)
     if status not in ('IN CORSO', 'TERMINATA'):
-        return '', []
+        return '0 - 0', []
     score = f"{match.get('home_final_score', 0)} - {match.get('visitor_final_score', 0)}"
     periods = []
     current = int(match.get('quarter') or 0)
@@ -64,7 +64,7 @@ def load_game(item):
         match = fetch_match(item['id'])
         status = match_status(match)
         score, periods = score_data(match)
-        players = fetch_game(str(item['id']))['players'] if status in ('IN CORSO', 'TERMINATA') else []
+        players = []
         result.update(status=status, datetime=match.get('match_datetime') or '',
                       score=score, periods=periods, quarter=match.get('quarter') or '',
                       players=players, error='')
@@ -125,7 +125,7 @@ def a2_game(row, day, with_players=True):
     game = {'id': row['gameid'], 'home': row.get('teamname_home') or 'Casa',
             'away': row.get('teamname_away') or 'Ospite', 'status': status,
             'datetime': date_iso(row.get('date'), row.get('time')),
-            'score': '', 'periods': [], 'quarter': '', 'players': [], 'error': ''}
+            'score': '0 - 0' if status == 'DA GIOCARE' else '', 'periods': [], 'quarter': '', 'players': [], 'error': ''}
     if status in ('IN CORSO', 'TERMINATA'):
         if row.get('score_home') is not None and row.get('score_away') is not None:
             game['score'] = f"{row['score_home']} - {row['score_away']}"
@@ -150,7 +150,7 @@ def get_a2_day(day):
             return cached[1]
     rows = a2_schedule(day)
     with ThreadPoolExecutor(max_workers=10) as pool:
-        games = list(pool.map(lambda row: a2_game(row, day), rows))
+        games = list(pool.map(lambda row: a2_game(row, day, with_players=False), rows))
     result = {'day': int(day), 'games': games}
     with LOCK:
         CACHE[('a2', day)] = (time.monotonic(), result)
@@ -172,7 +172,7 @@ def get_euro_day(day):
             return cached[1]
     schedule_rows = games_for_round(day)
     # Intenzionalmente sequenziale: il feed EuroLeague applica rate limiting.
-    games = [game_from_schedule(row, day, with_players=True) for row in schedule_rows]
+    games = [game_from_schedule(row, day, with_players=False) for row in schedule_rows]
     result = {'day': int(day), 'games': games}
     with LOCK:
         CACHE[('euro', day)] = (time.monotonic(), result)
@@ -190,7 +190,7 @@ def get_eurocup_day(day):
         if cached and time.monotonic() - cached[0] < 60:
             return cached[1]
     schedule_rows = eurocup_games_for_round(day)
-    games = [eurocup_game_from_schedule(row, day, with_players=True) for row in schedule_rows]
+    games = [eurocup_game_from_schedule(row, day, with_players=False) for row in schedule_rows]
     result = {'day': int(day), 'games': games}
     with LOCK:
         CACHE[('eurocup', day)] = (time.monotonic(), result)
@@ -200,6 +200,30 @@ def get_eurocup_day(day):
 def get_eurocup_scores(day):
     return [{key: g[key] for key in ('id','status','score','periods','quarter','datetime')}
             for g in [eurocup_game_from_schedule(row, day, with_players=False) for row in eurocup_games_for_round(day)]]
+
+
+def get_single_game(league, day, game_id):
+    """Load one boxscore lazily after the user opens a played/live game."""
+    if league == 'lba':
+        item = next((x for x in CALENDAR[day] if str(x['id']) == str(game_id)), None)
+        if not item: raise ValueError('Partita non trovata.')
+        result = load_game(item)
+        if result['status'] in ('IN CORSO', 'TERMINATA'):
+            result['players'] = fetch_game(str(item['id']))['players']
+        return result
+    if league == 'a2':
+        row = next((x for x in a2_schedule(day) if str(x['gameid']) == str(game_id)), None)
+        if not row: raise ValueError('Partita non trovata.')
+        return a2_game(row, day, with_players=True)
+    if league == 'euro':
+        row = next((x for x in games_for_round(day) if str(x.get('gameCode','')) == str(game_id)), None)
+        if not row: raise ValueError('Partita non trovata.')
+        return game_from_schedule(row, day, with_players=True)
+    if league == 'eurocup':
+        row = next((x for x in eurocup_games_for_round(day) if str(x.get('gameCode','')) == str(game_id)), None)
+        if not row: raise ValueError('Partita non trovata.')
+        return eurocup_game_from_schedule(row, day, with_players=True)
+    raise ValueError('Campionato non valido.')
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -225,6 +249,15 @@ class Handler(BaseHTTPRequestHandler):
             return self.json_response(200, {'ok': True})
         if url.path == '/api/calendar':
             return self.json_response(200, CALENDAR)
+        if url.path == '/api/game':
+            params = parse_qs(url.query)
+            day = params.get('day', [''])[0]; league = params.get('league', [''])[0]; game_id = params.get('id', [''])[0]
+            if league not in ('lba','a2','euro','eurocup') or not re.fullmatch(r'\d{1,2}', day) or not game_id:
+                return self.json_response(400, {'error':'Parametri partita non validi.'})
+            try:
+                return self.json_response(200, get_single_game(league, day, game_id))
+            except Exception as exc:
+                return self.json_response(502, {'error':str(exc)})
         if url.path in ('/api/day', '/api/excel', '/api/scores'):
             params = parse_qs(url.query)
             day = params.get('day', [''])[0]
@@ -246,9 +279,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json_response(502, {'error': str(exc)})
             if url.path == '/api/day':
                 return self.json_response(200, result)
-            if any(g['error'] for g in result['games']):
+            # Excel remains a full export: load boxscores only at export time.
+            full_games = []
+            for g in result['games']:
+                if g['status'] in ('IN CORSO', 'TERMINATA') and g.get('score','0 - 0').replace(' ','') != '0-0':
+                    full_games.append(get_single_game(league, day, g['id']))
+                else:
+                    full_games.append(g)
+            if any(g['error'] for g in full_games):
                 return self.json_response(502, {'error': 'Alcune partite non sono state lette: riprova prima di esportare.'})
-            content = make_xlsx(int(day), result['games'])
+            content = make_xlsx(int(day), full_games)
             name = {'lba':'LBA','a2':'LNP_A2','euro':'EUROLEAGUE','eurocup':'EUROCUP'}[league]
             return self.respond(200, content, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', f'{name}_2026-27_giornata_{int(day):02d}.xlsx')
         self.json_response(404, {'error': 'Pagina non trovata.'})
